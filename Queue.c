@@ -15,9 +15,28 @@ Queue *create_queue() {
         return NULL;
     }
 
-    queue->nodeCount = 0;
+    queue->numNodes = 0;
     queue->head = queue->tail = NULL;
     return queue;
+}
+
+QueueNode *queue_pop(Queue *queue) {
+    if (queue->numNodes == 0) {
+        return NULL;
+    }
+
+    QueueNode *head = queue->head;
+    if (queue->numNodes == 1) {
+        queue->head = NULL;
+        queue->tail = NULL;
+    } else {
+        queue->head->prev->next = queue->head->next;
+
+        queue->head = head->next;
+        queue->head->prev = head->prev;
+    }
+    queue->numNodes--;
+    return head;
 }
 
 int queue_push(Queue *queue, void *element) {
@@ -47,28 +66,24 @@ int queue_push(Queue *queue, void *element) {
         queue->tail->data = element;
     }
 
-    queue->nodeCount++;
+    queue->numNodes++;
     return 1;
 }
 
-QueueNode *queue_pop(Queue *queue) {
-    if (queue->nodeCount == 0) {
-        return NULL;
+void headToTail(Queue* queue) {
+    if (queue->numNodes < 2) {
+        return;
     }
 
-    QueueNode *head = queue->head;
-    if (queue->nodeCount == 1) {
-        queue->head = NULL;
-        queue->tail = NULL;
-    } else {
-        queue->head->prev->next = queue->head->next;
-
-        queue->head = head->next;
-        queue->head->prev = head->prev;
+    QueueNode* node = queue_pop(queue);
+    if (!node) {
+        return;
     }
-    queue->nodeCount--;
-    return head;
+
+    queue_push(queue, node->data);
+    free(node);
 }
+
 
 void traverse_q(Queue *queue) {
     QueueNode *ptr = queue->head;
@@ -89,11 +104,11 @@ void traverse_q(Queue *queue) {
 
     } while (ptr != queue->tail);
 
-    printf("\nTotal queue size: %d\n\n", queue->nodeCount);
+    printf("\nTotal queue size: %d\n\n", queue->numNodes);
 }
 
 void test_q() {
-    Queue* queue = create_queue();
+    Queue *queue = create_queue();
     if (!queue) {
         return;
     }
@@ -110,7 +125,7 @@ void test_q() {
         printf("Top should be gone: %d\n", (node->data));
 
         free(node);
-    } while (queue->nodeCount != 0);
+    } while (queue->numNodes != 0);
 
     free(queue);
 }

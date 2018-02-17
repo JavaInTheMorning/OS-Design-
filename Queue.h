@@ -18,7 +18,7 @@ typedef struct QueueNode {
  * Double linked Queue with access to both head and tail nodes.
  */
 typedef struct {
-    int nodeCount;
+    int numNodes;
 
     QueueNode *head;
     QueueNode *tail;
@@ -31,16 +31,21 @@ typedef struct {
 Queue *create_queue();
 
 /**
+ * Pops the 'head' of the @Queue.
+ * @return The 'head' @QueueNode reference. Needs to be freed to avoid memory leaks.
+ */
+QueueNode *queue_pop(Queue *);
+
+/**
  * Creates a new instance of @QueueNode struct and inserts into the 'tail' end of the Queue.
  * @return One if the operation was successful, Zero if the operation could not be performed.
  */
 int queue_push(Queue *, void *);
 
 /**
- * Pops the 'head' of the @Queue.
- * @return The 'head' @QueueNode reference. Needs to be freed to avoid memory leaks.
+ * Moves the @QueueNode from the front of the queue to the tail.
  */
-QueueNode *queue_pop(Queue *);
+void headToTail(Queue *);
 
 // ********************************************** Debugging instructions *********************************************//
 

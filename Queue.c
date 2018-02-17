@@ -3,10 +3,6 @@
  Circular Doubly linked list implementation of Queue. Supports push, pop and peak operations.
  All operations are O(1).
 */
-
-#include <malloc.h>
-#include <stdio.h>
-
 #include "Queue.h"
 
 Queue *create_queue() {
@@ -82,50 +78,4 @@ void headToTail(Queue* queue) {
 
     queue_push(queue, node->data);
     free(node);
-}
-
-
-void traverse_q(Queue *queue) {
-    QueueNode *ptr = queue->head;
-    printf("FRONT -> ");
-    do {
-        printf("Value: %d ", (ptr->data));
-
-        ptr = ptr->next;
-
-    } while (ptr != queue->head);
-
-    ptr = queue->tail;
-    printf("\nBack -> ");
-    do {
-        printf("Value: %d ", (ptr->data));
-
-        ptr = ptr->prev;
-
-    } while (ptr != queue->tail);
-
-    printf("\nTotal queue size: %d\n\n", queue->numNodes);
-}
-
-void test_q() {
-    Queue *queue = create_queue();
-    if (!queue) {
-        return;
-    }
-
-    queue_push(queue, 50);
-    queue_push(queue, 60);
-    queue_push(queue, 90);
-    queue_push(queue, 100);
-
-    do {
-        traverse_q(queue);
-
-        QueueNode *node = queue_pop(queue);
-        printf("Top should be gone: %d\n", (node->data));
-
-        free(node);
-    } while (queue->numNodes != 0);
-
-    free(queue);
 }

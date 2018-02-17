@@ -13,8 +13,8 @@
 /* include lib header files that you need here: */
 #include <unistd.h>
 #include <sys/types.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <ucontext.h>
+#include <pthread.h>
 
 #include "Queue.h"
 
@@ -67,7 +67,7 @@ pthread_t scheduler_pthread;
 /**
  * Counter for the next available pthread identifer.
  */
-_Atomic int pthread_counter;
+my_pthread_t pthread_counter;
 
 /**
  * Responsible for the scheduling of all @my_pthread_t.

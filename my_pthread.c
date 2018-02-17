@@ -6,14 +6,11 @@
 // username of iLab:
 // iLab Server:
 
-#include <pthread.h>
-#include <signal.h>
-#include <ucontext.h>
+
 #include "my_pthread_t.h"
-#include "Queue.h"
 
 void schedule(void *argument) {
-    pthread_detach(&scheduler_pthread); // Detach thread from thread group.
+    pthread_detach(scheduler_pthread); // Detach thread from thread group.
     getcontext(&scheduler_context); // Grab this thread's ucp as it handles all processing.
 
     while (1) {
@@ -62,7 +59,9 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t *attr, void *(*functi
         return -1;
     }
 
-    block->pthread_id = (*thread = ++pthread_counter);
+    __atomic_fetch_add(&pthread_counter, 1, __ATOMIC_SEQ_CST);
+
+    *thread = *block->pthread_id = pthread_counter;
 
     block->ucp->uc_stack.ss_size = STACK_SIZE;
     block->ucp->uc_stack.ss_sp = block->stack = malloc(sizeof(char) * STACK_SIZE);
@@ -82,12 +81,12 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t *attr, void *(*functi
         perror("Could not push block onto active.");
         return -1;
     }
-    block->ucp->uc_link = &scheduler_context;
 
-    makecontext(block->ucp, function, 1, arg);
+    block->ucp->uc_link = &scheduler_context;
+    makecontext(block->ucp, (void (*)(void)) function, 1, arg);
 
     if (!scheduler_pthread) { // Lazy load the scheduler thread.
-        pthread_create(&scheduler_pthread, NULL, schedule, NULL);
+        pthread_create(&scheduler_pthread, NULL, (void *(*)(void *)) schedule, NULL);
     }
 
     return *thread;
@@ -100,6 +99,7 @@ int my_pthread_yield() {
 
 /* terminate a thread */
 void my_pthread_exit(void *value_ptr) {
+
 };
 
 /* wait for thread termination */

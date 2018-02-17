@@ -5,6 +5,9 @@
 #ifndef USER_THREADS_QUEUE_H
 #define USER_THREADS_QUEUE_H
 
+#include <malloc.h>
+#include <stdio.h>
+
 /**
  * Doubly linked node.
  */
@@ -46,12 +49,5 @@ int queue_push(Queue *, void *);
  * Moves the @QueueNode from the front of the queue to the tail.
  */
 void headToTail(Queue *);
-
-// ********************************************** Debugging instructions *********************************************//
-
-void traverse_q(Queue *);
-
-void test_q();
-
 
 #endif //USER_THREADS_QUEUE_H

@@ -12,31 +12,76 @@
 
 /* include lib header files that you need here: */
 #include <unistd.h>
-#include <sys/syscall.h>
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "Queue.h"
+
 typedef uint my_pthread_t;
 
 typedef struct threadControlBlock {
-	/* add something here */
-} tcb; 
+    my_pthread_t *pthread_id;
+
+    ucontext_t *ucp;
+    void* stack;
+} tcb;
 
 /* mutex struct definition */
 typedef struct my_pthread_mutex_t {
-	/* add something here */
+    /* add something here */
 } my_pthread_mutex_t;
 
-/* define your data structures here: */
+/**
+ * Enum containing all three priority levels.
+ */
+typedef enum {
+    DEFAULT_PRIORITY, HIGH_PRIORITY, REALTIME_PRIORITY
+} Priority;
 
-// Feel free to add your own auxiliary data structures
+/**
+ * Number of priority levels.
+ */
+#define NUM_PRIORITY 3
 
+/**
+ * The uniform stack size UnsignedShort.MAX_SIZE
+ */
+#define STACK_SIZE 0x3FFF
 
-/* Function Declarations: */
+/**
+ * The active priority queues.
+ */
+Queue ACTIVE_QUEUES[NUM_PRIORITY];
+
+/**
+ * Scheduler's context, used when thread terminates or quantum is up.
+ */
+ucontext_t scheduler_context;
+
+/**
+ * The scheduler's thread identifier.
+ */
+pthread_t scheduler_pthread;
+
+/**
+ * Counter for the next available pthread identifer.
+ */
+_Atomic int pthread_counter;
+
+/**
+ * Responsible for the scheduling of all @my_pthread_t.
+ */
+void schedule(void *);
+
+/**
+ * Calculates the number of both active and sleeping threads.
+ * @return The number of total threads.
+ */
+int getNumAllThreads();
 
 /* create a new thread */
-int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg);
+int my_pthread_create(my_pthread_t *thread, pthread_attr_t *attr, void *(*function)(void *), void *arg);
 
 /* give CPU pocession to other user level threads voluntarily */
 int my_pthread_yield();

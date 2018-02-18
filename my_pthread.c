@@ -9,6 +9,26 @@
 
 #include "my_pthread_t.h"
 
+int testNumber = 0;
+
+void *test(void *lol) {
+    testNumber++;
+}
+
+int main(void) {
+    my_pthread_t threads[2];
+    int index = 0;
+
+    for (; index < 2; index++) {
+        my_pthread_create(&threads[index], NULL, (void *(*)(void *)) test, NULL);
+    }
+
+    printf("HELLO WORLD: %d\n", testNumber);
+
+    return 0;
+}
+
+
 void schedule(void *argument) {
     pthread_detach(scheduler_pthread); // Detach thread from thread group.
     getcontext(&scheduler_context); // Grab this thread's ucp as it handles all processing.
@@ -61,7 +81,7 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t *attr, void *(*functi
 
     __atomic_fetch_add(&pthread_counter, 1, __ATOMIC_SEQ_CST);
 
-    *thread = *block->pthread_id = pthread_counter;
+    *thread = block->pthread_id = pthread_counter;
 
     block->ucp->uc_stack.ss_size = STACK_SIZE;
     block->ucp->uc_stack.ss_sp = block->stack = malloc(sizeof(char) * STACK_SIZE);

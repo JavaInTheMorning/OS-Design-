@@ -21,7 +21,7 @@
 typedef uint my_pthread_t;
 
 typedef struct threadControlBlock {
-    my_pthread_t *pthread_id;
+    my_pthread_t pthread_id;
 
     ucontext_t *ucp;
     void* stack;

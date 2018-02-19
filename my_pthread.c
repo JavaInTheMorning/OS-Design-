@@ -6,7 +6,15 @@
 // username of iLab:
 // iLab Server:
 
+//TODO: PThread_Exit, Pthread_Yield, SignalHandler(), Interrupt ****************************
 
+#include<stdatomic> 
+#include <pthread.h>
+#include <signal.h>
+#include <ucontext.h>
+#include <signal.h>
+#include "my_pthread_t.h"
+#include "Queue.h"
 #include "my_pthread_t.h"
 
 int testNumber = 0;
@@ -114,8 +122,12 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t *attr, void *(*functi
 
 /* give CPU pocession to other user level threads voluntarily */
 int my_pthread_yield() {
-    return 0;
-};
+    //signa; 
+    signal(SIGINT, signalHandler); 
+    
+     
+    return SUCCESS
+}
 
 /* terminate a thread */
 void my_pthread_exit(void *value_ptr) {
@@ -129,23 +141,44 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) {
+    mutex->isLocked = FALSE; // unlocked on initializion
+    mutex->mutexHolderThread = ;
     return 0;
-};
+}
 
 /* aquire the mutex lock */
 int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
-    return 0;
-};
+    if (mutex == NULL) {
+        printf("error unintialized mutex");
+        return FAIL; 
+    }else {
+        while (mutex->lock == 0  ) {
+                mutex->lock = 1;
+            }
+         }
+    return SUCCESS; 
+}
 
 /* release the mutex lock */
 int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
-    return 0;
-};
+    if(mutex==NULL){
+        printf("error unitialized mutex") ;
+        return FAIL; 
+     }else{
+         if(mutex->lock ==1) {//unlock the mutex
+             mutex->lock = 0; 
+             return SUCCESS; 
+         }
+       }   
+       
+}
 
 /* destroy the mutex */
 int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
+    mutex->isLocked = DESTROY;
+    mutex->mutexHolderThread = DESTROY;
     return 0;
-};
+}
 
 
 int getNumAllThreads() {
@@ -155,4 +188,3 @@ int getNumAllThreads() {
     }
     return numThreads;
 }
-

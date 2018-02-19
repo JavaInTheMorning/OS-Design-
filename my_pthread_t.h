@@ -15,8 +15,25 @@
 #include <sys/types.h>
 #include <ucontext.h>
 #include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include<stdatmoic.h> 
 
 #include "Queue.h"
+
+#define USE_MY_PTHREAD 1 //(comment it if you want to use real pthread)
+
+#ifdef USE_MY_PTHREAD
+#define pthread_t my_pthread_t
+#define pthread_mutex_t my_pthread_mutex_t
+#define pthread_create my_pthread_create
+#define pthread_exit my_pthread_exit
+#define pthread_join my_pthread_join
+#define pthread_mutex_init my_pthread_mutex_init
+#define pthread_mutex_lock my_pthread_mutex_lock
+#define pthread_mutex_unlock my_pthread_mutex_unlock
+#define pthread_mutex_destroy my_pthread_mutex_destroy
+#endif
 
 typedef uint my_pthread_t;
 
@@ -27,9 +44,15 @@ typedef struct threadControlBlock {
     void* stack;
 } tcb;
 
+#define TRUE 1
+#define FALSE 0
+#define DESTROY -1
 /* mutex struct definition */
 typedef struct my_pthread_mutex_t {
     /* add something here */
+    int isLocked;
+    int  *lock ; 
+    volatile my_pthread_t mutexHolderThread;
 } my_pthread_mutex_t;
 
 /**

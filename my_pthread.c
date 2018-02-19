@@ -7,12 +7,14 @@
 // iLab Server:
 
 
+#include <errno.h>
 #include "my_pthread_t.h"
 
 int testNumber = 0;
 
 void *test(void *lol) {
     testNumber++;
+    printf("Hi testing\n");
 }
 
 int main(void) {
@@ -30,13 +32,21 @@ int main(void) {
 
 
 void schedule(void *argument) {
-    pthread_detach(scheduler_pthread); // Detach thread from thread group.
-    getcontext(&scheduler_context); // Grab this thread's ucp as it handles all processing.
+
+    if (pthread_detach(*scheduler_pthread) == -1) {// Detach thread from thread group.
+        perror("Could not detach thread.");
+        return;
+    }
+
+    if (getcontext(&scheduler_context) == -1) { // Grab this thread's ucp as it handles all processing.
+        perror("Could not grab scheduler context");
+        return;
+    }
 
     while (1) {
         int numThreads = getNumAllThreads();
         if (numThreads == 0) {
-            break;
+            continue;
         }
 
         int index = REALTIME_PRIORITY;
@@ -50,21 +60,33 @@ void schedule(void *argument) {
                     continue;
                 }
 
-                if (swapcontext(&scheduler_context, ((tcb *) node->data)->ucp) == -1) {
-                    perror("Context switch failed.");
+                tcb* block = (tcb*) node->data;
+                if (!block) {
+                    continue;
+                }
+
+                if (swapcontext(&scheduler_context, block->ucp) == -1) {
+                    printf("Context switch failed: %d\n", errno);
                     continue;
                 }
 
                 free(node);
             } while (--numProcessed >= 0);
         }
-
-        sleep(1);
     }
 }
 
 /* create a new thread */
 int my_pthread_create(my_pthread_t *thread, pthread_attr_t *attr, void *(*function)(void *), void *arg) {
+    if (!scheduler_pthread) { // Lazy load the scheduler thread.
+        scheduler_pthread = malloc(sizeof(pthread_t));
+        if (!scheduler_pthread) {
+            perror("Could not allocate scheduler thread.");
+            return 0;
+        }
+        pthread_create(scheduler_pthread, NULL, (void *(*)(void *)) schedule, NULL);
+    }
+
     tcb *block = (tcb *) malloc(sizeof(tcb));
     if (!block) {
         perror("Could not allocate thread control block.");
@@ -78,6 +100,8 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t *attr, void *(*functi
         perror("Could not allocate user ucp protocol.");
         return -1;
     }
+
+    getcontext(block->ucp);
 
     __atomic_fetch_add(&pthread_counter, 1, __ATOMIC_SEQ_CST);
 
@@ -93,6 +117,9 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t *attr, void *(*functi
         return -1;
     }
 
+    block->ucp->uc_link = &scheduler_context;
+    makecontext(block->ucp, (void (*)(void)) function, 1, arg);
+
     if (!queue_push(ACTIVE_QUEUES + DEFAULT_PRIORITY, block)) {
         free(block->stack);
         free(block->ucp);
@@ -100,13 +127,6 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t *attr, void *(*functi
 
         perror("Could not push block onto active.");
         return -1;
-    }
-
-    block->ucp->uc_link = &scheduler_context;
-    makecontext(block->ucp, (void (*)(void)) function, 1, arg);
-
-    if (!scheduler_pthread) { // Lazy load the scheduler thread.
-        pthread_create(&scheduler_pthread, NULL, (void *(*)(void *)) schedule, NULL);
     }
 
     return *thread;

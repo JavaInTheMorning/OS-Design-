@@ -62,7 +62,7 @@ ucontext_t scheduler_context;
 /**
  * The scheduler's thread identifier.
  */
-pthread_t scheduler_pthread;
+pthread_t* scheduler_pthread = NULL;
 
 /**
  * Counter for the next available pthread identifer.

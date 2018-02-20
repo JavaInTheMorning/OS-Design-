@@ -18,35 +18,10 @@
 
 #include "Queue.h"
 
-#define USE_MY_PTHREAD 1 //(comment it if you want to use real pthread)
-
-#ifdef USE_MY_PTHREAD
-#define pthread_t my_pthread_t
-#define pthread_mutex_t my_pthread_mutex_t
-#define pthread_create my_pthread_create
-#define pthread_exit my_pthread_exit
-#define pthread_join my_pthread_join
-#define pthread_mutex_init my_pthread_mutex_init
-#define pthread_mutex_lock my_pthread_mutex_lock
-#define pthread_mutex_unlock my_pthread_mutex_unlock
-#define pthread_mutex_destroy my_pthread_mutex_destroy
-#endif
-
-typedef uint my_pthread_t;
-
-typedef struct threadControlBlock {
-    my_pthread_t pthread_id;
-
-    ucontext_t *ucp;
-    void* stack;
-} tcb;
-
 /* mutex struct definition */
 typedef struct my_pthread_mutex_t {
-    void *ptr ; //a pointer to mux lock address
-    const int* intial ; //intialization number for a lock
-} my_pthread_mutex_t
-
+    /* add something here */
+} my_pthread_mutex_t;
 
 /**
  * Enum containing all three priority levels.
@@ -54,6 +29,22 @@ typedef struct my_pthread_mutex_t {
 typedef enum {
     DEFAULT_PRIORITY, HIGH_PRIORITY, REALTIME_PRIORITY
 } Priority;
+
+typedef enum {
+    THREAD_INITIALZED, THREAD_RUNNING, THREAD_COMPLETE
+} ThreadState;
+
+typedef uint my_pthread_t;
+
+typedef struct threadControlBlock {
+    my_pthread_t pthread_id;
+    ucontext_t *ucp;
+
+    void *stack;
+    void *returnCode;
+
+    ThreadState state;
+} tcb;
 
 /**
  * Number of priority levels.
@@ -66,6 +57,11 @@ typedef enum {
 #define STACK_SIZE 0x3FFF
 
 /**
+ * The default Quantum.
+ */
+#define DEFAULT_QUANTUM 50
+
+/**
  * The active priority queues.
  */
 Queue ACTIVE_QUEUES[NUM_PRIORITY];
@@ -73,12 +69,27 @@ Queue ACTIVE_QUEUES[NUM_PRIORITY];
 /**
  * Scheduler's context, used when thread terminates or quantum is up.
  */
-ucontext_t scheduler_context;
+ucontext_t *scheduler_context = NULL;
 
 /**
- * The scheduler's thread identifier.
+ * The scheduler's write thread identifier.
  */
-pthread_t* scheduler_pthread = NULL;
+pthread_t *schedule_write_pthread = NULL;
+
+/**
+ * The scheduler's read thread identifier;
+ */
+pthread_t *schedule_read_pthread = NULL;
+
+/**
+ * The recieved thread to schedule.
+ */
+QueueNode *recievedThread = NULL;
+
+/**
+ * The amount of time remaining until the next schedule.
+ */
+size_t nextThreadCycle = 0;
 
 /**
  * Counter for the next available pthread identifer.
@@ -91,10 +102,17 @@ my_pthread_t pthread_counter;
 void schedule(void *);
 
 /**
+ * Responsible for execution of the current @QueueNode.
+ */
+void receive(void *);
+
+/**
  * Calculates the number of both active and sleeping threads.
  * @return The number of total threads.
  */
 int getNumAllThreads();
+
+QueueNode *findForID(my_pthread_t);
 
 /* create a new thread */
 int my_pthread_create(my_pthread_t *thread, pthread_attr_t *attr, void *(*function)(void *), void *arg);

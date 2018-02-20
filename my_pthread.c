@@ -1,11 +1,11 @@
-// File:	my_pthread.c
-// Author:	Yujie REN
-// Date:	09/23/2017
+// Author:  Yujie REN
+// Date:    09/23/2017
 
 // name:
 // username of iLab:
 // iLab Server:
 
+// TODO: Yield/Exit/Join SignHandler
 
 #include <errno.h>
 #include "my_pthread_t.h"
@@ -149,22 +149,36 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) {
-    return 0;
+
+    (void *)mutex->ptr = mutex;
+    (const int*)mutex->intial = 0;
+    return 1;
 };
 
 /* aquire the mutex lock */
+//first test try to acqurie lock, if free-lock,  unlock when free
+//__sync_lock_test_and_set (type *ptr, type value, ...)
 int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
-    return 0;
+
+    void* ptr = (my_pthread_mutex_t*)mutex->ptr;
+    while(__sync_lock_test_and_set(&ptr, 1)){
+        //my_pthread_yield();
+    }
+    return 1;
 };
 
 /* release the mutex lock */
 int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
-    return 0;
-};
 
-/* destroy the mutex */
+    __sync_lock_release(&mutex );
+    return 1;
+};
+//release and lock, free the pointer to mutex struct
 int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
-    return 0;
+
+    __sync_lock_release(&mutex); 
+    free((void*)mutex); 
+    return 1;
 };
 
 
@@ -175,4 +189,3 @@ int getNumAllThreads() {
     }
     return numThreads;
 }
-

@@ -13,20 +13,22 @@
 #include "Queue.h"
 
 int testNumber = 0;
-
+pthread_mutex_t mutex;
 void *test(void *lol) {
-    ++testNumber;
-    printf("TEST");
+    testNumber++;
+    printf("Hi testing\n");
 }
 
 int main(void) {
     my_pthread_t threads[2];
     int index = 0;
-
+    my_pthread_mutex_init(&mutex, NULL);
     for (; index < 2; index++) {
         my_pthread_create(&threads[index], NULL, (void *(*)(void *)) test, NULL);
     }
 
+    printf("HELLO WORLD: %d\n", testNumber);
+    pthread_mutex_destroy(&mutex);
     return 0;
 }
 
@@ -236,23 +238,44 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 };
 
 /* initial the mutex lock */
-int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) {
-    return 0;
+//thread will call init specifying a pointer to mutex struct, 
+int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const int* mutexattr) {
+
+    mutex->ptr = &mutex;
+    mutex->intial = 0;
+    //Queue *waitingLocks = (Queue     //*)malloc(sizeof(Queue);
+     
+    
+    return 1;
 };
 
 /* aquire the mutex lock */
+//first test try to acqurie lock, if free-lock,  unlock when free
+//__sync_lock_test_and_set (type *ptr, type value, ...)
 int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
-    return 0;
+
+    void* ptr = (my_pthread_mutex_t*)mutex->inital;
+    while(__sync_lock_test_and_set(&intial, 1)){
+        my_pthread_yield();
+        //mutex->waiting
+        
+    }
+    return 1;
 };
 
 /* release the mutex lock */
 int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
-    return 0;
+    
+    
+    __sync_lock_release(&mutex );
+    return 1;
 };
-
-/* destroy the mutex */
+//release and lock, free the pointer to mutex struct
 int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
-    return 0;
+
+    __sync_lock_release(&mutex); 
+    free((void*)mutex); 
+    return 1;
 };
 
 

@@ -18,9 +18,28 @@
 
 #include "Queue.h"
 
+// For benchmark
+#define USE_MY_PTHREAD 1 //(comment it if you want to use real pthread)
+
+#ifdef USE_MY_PTHREAD
+#define pthread_t my_pthread_t
+#define pthread_mutex_t my_pthread_mutex_t
+#define pthread_create my_pthread_create
+#define pthread_exit my_pthread_exit
+#define pthread_join my_pthread_join
+#define pthread_mutex_init my_pthread_mutex_init
+#define pthread_mutex_lock my_pthread_mutex_lock
+#define pthread_mutex_unlock my_pthread_mutex_unlock
+#define pthread_mutex_destroy my_pthread_mutex_destroy
+#endif
+
+
+
 /* mutex struct definition */
 typedef struct my_pthread_mutex_t {
-    /* add something here */
+    void *ptr ; //a pointer to mux lock address
+    const int intial ; //intialization number for a lock
+    //Queue *waiting; //queue for all waiting locks 
 } my_pthread_mutex_t;
 
 /**

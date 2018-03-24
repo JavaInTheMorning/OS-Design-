@@ -22,6 +22,7 @@ void myallocate(size_t sizeBits, __FILE__, __LINE__, THREADREQ);
 typedef struct block{
     char free ; //is block free or already allocated, if free set 1 otherwise 0
     size_t size ; //size of given block allocated
+    size_t pos; // the position of the given block.
     //char data[1]; //used for splitting blocks?
     struct block *next; //pointer to next block's metadata
 

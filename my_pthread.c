@@ -1,139 +1,50 @@
-// File:	my_pthread.c
-// Author:	Yujie REN
-// Date:	09/23/2017
-
-// name:
-// username of iLab:
-// iLab Server:
-
-
-#include <errno.h>
-#include <semaphore.h>
-#include "my_pthread_t.h"
+#include "my_pthread.h"
 #include "Queue.h"
 
-int testNumber = 0;
-pthread_mutex_t mutex;
-void *test(void *lol) {
-    testNumber++;
-    printf("Hi testing\n");
-}
-
-int main(void) {
-    my_pthread_t threads[2];
-    int index = 0;
-    my_pthread_mutex_init(&mutex, NULL);
-    for (; index < 2; index++) {
-        my_pthread_create(&threads[index], NULL, (void *(*)(void *)) test, NULL);
+void prepareScheduler(long period) {
+    READY_QUEUE = create_queue(DEFAULT_PRIORITY);
+    if (!READY_QUEUE) {
+        return;
     }
-
-    printf("HELLO WORLD: %d\n", testNumber);
-    pthread_mutex_destroy(&mutex);
-    return 0;
-}
-
-
-void schedule(void *argument) {
-    if (pthread_detach(*schedule_write_pthread) == -1) {// Detach thread from thread group.
-        perror("Could not detach thread.");
+    REAP_QUEUE = create_queue(DEFAULT_PRIORITY);
+    if (!REAP_QUEUE) {
         return;
     }
 
-    while (1) {
-        if (!scheduler_context) {
-            continue;
-        }
+    my_pthread_t mainThread;
+    my_pthread_create(&mainThread, NULL, NULL, NULL);
 
-        int numThreads = getNumAllThreads();
-        if (numThreads == 0) {
-            continue;
-        }
-
-        int priority = REALTIME_PRIORITY;
-        for (; priority >= DEFAULT_PRIORITY; priority--) {
-            Queue *queue = ACTIVE_QUEUES + priority;
-
-            int numProcessed = queue->numNodes;
-            do {
-                QueueNode *nextThread = queue_pop(queue);
-                if (!nextThread) {
-                    continue;
-                }
-
-                recievedThread = nextThread;
-                ((tcb *) recievedThread->data)->state = THREAD_RUNNING;
-                nextThreadCycle = DEFAULT_QUANTUM << priority;
-
-                while (1) {
-                    tcb *block = (tcb *) recievedThread->data;
-                    if (block->state == THREAD_COMPLETE) {
-                        free(recievedThread);
-                        break;
-                    }
-
-                    if (nextThreadCycle-- > 0)
-                        continue;
-
-                    if (swapcontext(block->ucp, block->ucp->uc_link) == -1) {
-                        printf("Context switch failed: %d\n", errno);
-                    }
-                    break;
-                }
-            } while (--numProcessed >= 0);
-        }
-    }
-}
-
-void receive(void *argument) {
-    if (pthread_detach(*schedule_read_pthread) == -1) {// Detach thread from thread group.
-        perror("Could not detach thread.");
+    nextBlock = getThreadBlockForID(mainThread);
+    if (!nextBlock) {
+        printf("Could not get the main thread block. %d\n", mainThread);
         return;
     }
 
-    if (!scheduler_context) {
-        scheduler_context = (ucontext_t *) malloc(sizeof(ucontext_t));
-        if (!scheduler_context) {
-            perror("Failed to initialize scheduler context.");
-            return;
-        }
+    it_values.it_interval.tv_usec = period;
+    it_values.it_interval.tv_sec = 0;
+    it_values.it_value.tv_usec = period;
+    it_values.it_value.tv_sec = 0;
 
-        if (getcontext(scheduler_context) == -1) { // Grab this thread's ucp as it handles all processing.
-            perror("Could not grab scheduler context");
-            return;
-        }
+    sigemptyset(&alarm_sigset);
+    sigaddset(&alarm_sigset, SIGVTALRM);
+
+    if (setitimer(ITIMER_VIRTUAL, &it_values, NULL) == -1) {
+        printf("Timer could not be initialized.\n");
+        return;
     }
 
-    while (1) {
-        if (!recievedThread) {
-            continue;
-        }
-
-        tcb *block = (tcb *) recievedThread->data;
-        if (!block) {
-            continue;
-        }
-
-        if (swapcontext(scheduler_context, block->ucp) == -1) {
-            printf("Context switch failed: %d\n", errno);
-            continue;
-        }
-
-        block->state = THREAD_COMPLETE;
+    action.sa_handler = &interruptHandler;
+    if (sigaction(SIGVTALRM, &action, NULL) == -1) {
+        printf("Signal could not be initialized.\n");
+        return;
     }
 }
 
-/* create a new thread */
-int my_pthread_create(my_pthread_t *thread, pthread_attr_t *attr, void *(*function)(void *), void *arg) {
-    if (!schedule_write_pthread && !schedule_read_pthread) { // Lazy load the scheduler thread.
-        schedule_write_pthread = (pthread_t *) malloc(sizeof(pthread_t));
-        schedule_read_pthread = (pthread_t *) malloc(sizeof(pthread_t));
-        if (!schedule_write_pthread || !schedule_read_pthread) {
-            perror("Could not allocate scheduler thread.");
-            return 0;
-        }
+int my_pthread_create(my_pthread_t *thread, pthread_attr_t *attr, void *(*funcAddr)(void *), void *arg) {
+    sigprocmask(SIG_BLOCK, &alarm_sigset, NULL);
 
-        pthread_create(schedule_write_pthread, NULL, (void *(*)(void *)) schedule, NULL);
-        pthread_create(schedule_read_pthread, NULL, (void *(*)(void *)) receive, NULL);
+    if (!READY_QUEUE && !REAP_QUEUE) {
+        prepareScheduler(5000);
     }
 
     tcb *block = (tcb *) malloc(sizeof(tcb));
@@ -150,32 +61,29 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t *attr, void *(*functi
         return -1;
     }
 
-    getcontext(block->ucp);
+    if (getcontext(block->ucp) == -1) {
+        perror("Could not get active context.");
+        return -1;
+    }
+
+    block->ucp->uc_stack.ss_sp = malloc(SIGSTKSZ);
+    block->ucp->uc_stack.ss_size = SIGSTKSZ;
+    block->ucp->uc_stack.ss_flags = 0;
+
+    if (funcAddr) {
+        block->ucp->uc_link = getThreadBlockForID(MAIN_THREAD_IDENTIFIER)->ucp;
+        makecontext(block->ucp, (void (*)(void)) reapRoutine, NUM_CONTEXT_ARGS, funcAddr, arg);
+    } else {
+        block->ucp->uc_link = NULL;
+    }
 
     __atomic_fetch_add(&pthread_counter, 1, __ATOMIC_SEQ_CST);
-
     *thread = block->pthread_id = pthread_counter;
 
-    block->ucp->uc_stack.ss_size = STACK_SIZE;
-    block->ucp->uc_stack.ss_sp = block->stack = malloc(sizeof(char) * STACK_SIZE);
-    if (!block->stack) {
-        free(block->ucp);
-        free(block);
+    block->state = STATE_RUNNING;
+    block->joinedThreadId = 0;
 
-        perror("Could not allocate stack.");
-        return -1;
-    }
-
-    block->ucp->uc_link = (ucontext_t *) malloc(sizeof(ucontext_t));
-    *block->ucp->uc_link = *scheduler_context;
-    if (!block->ucp->uc_link) {
-        perror("Could not allocate uc-link.");
-        return -1;
-    }
-    makecontext(block->ucp, (void (*)(void)) function, 1, arg);
-
-    block->state = THREAD_INITIALZED;
-    if (!queue_push(ACTIVE_QUEUES + DEFAULT_PRIORITY, block)) {
+    if (!queue_push(READY_QUEUE, (void *) block)) {
         free(block->stack);
         free(block->ucp);
         free(block);
@@ -184,130 +92,350 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t *attr, void *(*functi
         return -1;
     }
 
+    /* unblock the signal */
+    sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
     return *thread;
-};
-
-/* give CPU procession to other user level threads voluntarily */
-int my_pthread_yield() {
-    if (!recievedThread) {
-        return -1;
-    }
-
-    tcb *block = (tcb *) recievedThread->data;
-    if (!queue_push(ACTIVE_QUEUES + DEFAULT_PRIORITY, block)) {
-        perror("Could not push block onto active.");
-        return -1;
-    }
-    return 0;
-};
-
-/* terminate a thread */
-void my_pthread_exit(void *value_ptr) {
-    if (!recievedThread) {
-        return;
-    }
-
-    tcb *block = (tcb *) recievedThread->data;
-
-    block->state = THREAD_COMPLETE;
-    block->returnCode = value_ptr;
-};
-
-/* wait for thread termination */
-int my_pthread_join(my_pthread_t thread, void **value_ptr) {
-    tcb *block = (tcb *) recievedThread->data;
-    if (thread < 0 || block->pthread_id == thread) {
-        while (block->state != THREAD_COMPLETE) {
-            // Spin
-        }
-
-        block->returnCode = *value_ptr;
-    } else {
-        QueueNode *node = findForID(thread);
-        if (!node) {
-            return -1;
-        }
-
-        while (((tcb *) node->data)->pthread_id != ((tcb *) recievedThread->data)->pthread_id) {
-            my_pthread_yield();
-        }
-
-        return my_pthread_join(thread, value_ptr);
-    }
-    return 0;
-};
-
-/* initial the mutex lock */
-//thread will call init specifying a pointer to mutex struct, 
-int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const int* mutexattr) {
-
-    mutex->ptr = &mutex;
-    mutex->intial = 0;
-    //Queue *waitingLocks = (Queue     //*)malloc(sizeof(Queue);
-     
-    
-    return 1;
-};
-
-/* aquire the mutex lock */
-//first test try to acqurie lock, if free-lock,  unlock when free
-//__sync_lock_test_and_set (type *ptr, type value, ...)
-int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
-
-    void* ptr = (my_pthread_mutex_t*)mutex->inital;
-    while(__sync_lock_test_and_set(&intial, 1)){
-        my_pthread_yield();
-        //mutex->waiting
-        
-    }
-    return 1;
-};
-
-/* release the mutex lock */
-int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
-    
-    
-    __sync_lock_release(&mutex );
-    return 1;
-};
-//release and lock, free the pointer to mutex struct
-int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
-
-    __sync_lock_release(&mutex); 
-    free((void*)mutex); 
-    return 1;
-};
-
-
-int getNumAllThreads() {
-    int numThreads = 0, index = REALTIME_PRIORITY;
-    for (; index >= 0; index--) {
-        numThreads += ACTIVE_QUEUES[index].numNodes;
-    }
-    return numThreads;
 }
 
-QueueNode *findForID(my_pthread_t thread) {
-    QueueNode *pointer;
+int my_pthread_join(my_pthread_t thread, void **status) {
+    if (thread == nextBlock->pthread_id)
+        return -1;
 
-    int priority = REALTIME_PRIORITY;
-    for (; priority >= DEFAULT_PRIORITY; priority--) {
-        Queue *queue = ACTIVE_QUEUES + priority;
-        if (queue->numNodes == 0) {
+    tcb *block = getThreadBlockForID(thread);
+    if (!block)
+        return -1;
+
+    if (block->joinedThreadId == nextBlock->pthread_id)
+        return -1;
+
+    nextBlock->joinedThreadId = block->pthread_id;
+    while (block->state == STATE_RUNNING) {
+        my_pthread_yield();
+    }
+
+    if (!status) {
+        return 0;
+    }
+
+    switch (block->state) {
+        case STATE_RUNNING:
+            printf("Thread joined in illegal state.\n");
+            exit(0);
+            break;
+        case STATE_CANCELED:
+            *status = (void *) STATE_CANCELED;
+            break;
+        case STATE_COMPLETE:
+            *status = block->returnPointer;
+            break;
+    }
+    return 0;
+}
+
+void my_pthread_exit(void *returnPointer) {
+    sigprocmask(SIG_BLOCK, &alarm_sigset, NULL);
+
+    if (queue_empty(READY_QUEUE)) {
+        sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
+    } else if (nextBlock->pthread_id == MAIN_THREAD_IDENTIFIER) {
+        do { // Perhaps we need to yield this? Possible race here?
+            my_pthread_yield();
+        } while (!queue_empty(READY_QUEUE));
+        sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
+    } else {
+        tcb *previousBlock = nextBlock;
+
+        QueueNode *nextNode = queue_pop(READY_QUEUE);
+        if (!nextNode) {
+            return;
+        }
+
+        nextBlock = (tcb *) nextNode->data;
+
+        previousBlock->state = STATE_COMPLETE;
+        previousBlock->returnPointer = returnPointer;
+        previousBlock->joinedThreadId = 0;
+
+        free(previousBlock->ucp->uc_stack.ss_sp);
+        free(previousBlock->ucp);
+
+        if (!queue_push(REAP_QUEUE, previousBlock)) {
+            printf("Could not push previous onto reap queue.\n");
+            return;
+        }
+
+        sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
+        setcontext(nextBlock->ucp);
+
+        nextBlock->state = STATE_COMPLETE;
+        if (!queue_push(REAP_QUEUE, nextBlock)) {
+            return;
+        }
+    }
+}
+
+int my_pthread_yield(void) {
+    sigprocmask(SIG_BLOCK, &alarm_sigset, NULL);
+
+    if (queue_empty(READY_QUEUE))
+        return 0;
+
+    tcb *previousBlock = nextBlock;
+
+    QueueNode *nextNode = queue_pop(READY_QUEUE);
+    if (!nextNode) {
+        return 0;
+    }
+
+    nextBlock = (tcb *) nextNode->data;
+    if (!queue_push(READY_QUEUE, previousBlock)) {
+        printf("Could not push previous onto reap queue.\n");
+        return -1;
+    }
+
+    sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
+    swapcontext(previousBlock->ucp, nextBlock->ucp);
+
+    if (!queue_push(REAP_QUEUE, nextBlock)) {
+        return -1;
+    }
+
+    return 0;
+}
+
+int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) {
+    sigprocmask(SIG_BLOCK, &alarm_sigset, NULL);
+
+    mutex->waiting = create_queue(DEFAULT_PRIORITY);
+    if (!mutex->waiting) {
+        return -1;
+    }
+
+    sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
+    return 0;
+}
+
+int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
+    sigprocmask(SIG_BLOCK, &alarm_sigset, NULL);
+
+    if (queue_empty(mutex->waiting)) {
+        if (!queue_push(mutex->waiting, (void *) my_pthread_self())) {
+            printf("Could not push self into waiting queue.\n");
+            return -1;
+        }
+        sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
+        return 0;
+    }
+
+    QueueNode *head = mutex->waiting->head;
+    if (!head) {
+        return -1;
+    }
+
+    if (my_pthread_self() == (my_pthread_t) head->data) {
+        sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
+        return 0;
+    }
+
+    if (!queue_push(mutex->waiting, (void *) my_pthread_self())) {
+        printf("Could not push self into waiting queue.\n");
+        sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
+        return -1;
+    }
+
+    while (1) {
+        QueueNode *nextHead = mutex->waiting->head;
+        if (!nextHead)
+            break;
+
+        if (queue_empty(mutex->waiting) || my_pthread_self() == (my_pthread_t) nextHead->data)
+            break;
+
+        my_pthread_yield();
+    }
+    sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
+    return 0;
+}
+
+int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
+    sigprocmask(SIG_BLOCK, &alarm_sigset, NULL);
+
+    if (queue_empty(mutex->waiting)) {
+        sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
+        return -1;
+    }
+
+    if ((my_pthread_t) mutex->waiting->head->data != my_pthread_self()) {
+        sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
+        return -1;
+    }
+
+    queue_pop(mutex->waiting);
+    sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
+    return 0;
+}
+
+int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
+    sigprocmask(SIG_BLOCK, &alarm_sigset, NULL);
+
+    //release_queue(mutex->waiting);
+    sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
+    return 0;
+}
+
+int my_pthread_equal(my_pthread_t t1, my_pthread_t t2) {
+    return t1 == t2;
+}
+
+/*int my_pthread_cancel(my_pthread_t thread) {
+    if (my_pthread_equal(nextBlock->pthread_id, thread))
+        my_pthread_exit(0);
+
+    sigprocmask(SIG_BLOCK, &alarm_sigset, NULL);
+    tcb *t = getThreadBlockForID(thread);
+    if (t == NULL) {
+        sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
+        return -1;
+    }
+    if (t->state == STATE_COMPLETE) {
+        sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
+        return -1;
+    }
+    if (t->state == STATE_CANCELED) {
+        sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
+        return -1;
+    } else
+        t->state = STATE_CANCELED;
+
+    free(t->ucp->uc_stack.ss_sp);
+    free(t->ucp);
+    t->ucp = NULL;
+    t->joinedThreadId = 0;
+    queue_push(REAP_QUEUE, t);
+    sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
+    return 0;
+}*/
+
+void reapRoutine(void *(*start_routine)(void *), void *args) {
+    sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
+
+    nextBlock->returnPointer = (*start_routine)(args);
+    my_pthread_exit(nextBlock->returnPointer);
+}
+
+void interruptHandler(int sig) {
+    sigprocmask(SIG_BLOCK, &alarm_sigset, NULL);
+
+    tcb *previousBlock = nextBlock;
+    do {
+        if (queue_empty(READY_QUEUE)) {
+            if (!queue_push(READY_QUEUE, previousBlock)) { //TODO higher priority push here! Block already exists.
+                printf("Could not push the next block on ready interrupt.\n");
+                return;
+            }
+            sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
+            return;
+        }
+
+        QueueNode *nextNode = queue_pop(READY_QUEUE);
+        if (!nextNode) {
             continue;
         }
 
-        pointer = queue->head;
-        do {
-            tcb *block = (tcb *) pointer->data;
-            if (block->pthread_id == thread) {
-                return pointer;
-            }
+        nextBlock = (tcb *) nextNode->data;
+        if (!nextBlock) {
+            continue;
+        }
 
-            pointer = pointer->next;
-        } while (pointer != queue->head);
+        if (nextBlock->state == STATE_RUNNING) {
+            break;
+        }
+
+        //my_pthread_exit(nextBlock->returnPointer);
+        if (!queue_push(REAP_QUEUE, nextBlock)) {
+            printf("Could not push the next block on reap interrupt.\n");
+            continue;
+        }
+
+    } while (1);
+
+    if (!queue_push(READY_QUEUE, previousBlock)) { //TODO higher priority push here! Block already exists.
+        printf("Could not push the next block on ready interrupt.\n");
+        return;
     }
 
-    return NULL;
+    sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
+    swapcontext(previousBlock->ucp, nextBlock->ucp);
+
+   // nextBlock->state = STATE_COMPLETE;
+    if (!queue_push(REAP_QUEUE, nextBlock)) {
+        return;
+    }
 }
 
+int updateNextBlock(tcb *lastBlock) {
+    do {
+        if (queue_empty(READY_QUEUE)) {
+            if (lastBlock && !queue_push(READY_QUEUE, lastBlock)) { //TODO higher priority push here! Block already exists.
+                printf("Could not push the next block on ready interrupt.\n");
+                return -1;
+            }
+            return -1;
+        }
+
+        QueueNode *nextNode = queue_pop(READY_QUEUE);
+        if (!nextNode) {
+            continue;
+        }
+
+        nextBlock = (tcb *) nextNode->data;
+        if (!nextBlock) {
+            continue;
+        }
+
+        if (nextBlock->state == STATE_RUNNING) {
+            break;
+        }
+
+        if (!queue_push(REAP_QUEUE, nextBlock)) {
+            printf("Could not push the next block on reap interrupt.\n");
+            continue;
+        }
+
+    } while (1);
+
+    if (!lastBlock) {
+        return 0;
+    }
+
+    if (!queue_push(READY_QUEUE, lastBlock)) { //TODO higher priority push here! Block already exists.
+        printf("Could not push the next block on ready interrupt.\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+my_pthread_t my_pthread_self() {
+    return nextBlock->pthread_id;
+}
+
+tcb *getThreadBlockForID(my_pthread_t tid) {
+    QueueNode *nextBlock = READY_QUEUE->head;
+    do {
+        tcb *t = (tcb *) nextBlock->data;
+        if (t->pthread_id == tid)
+            return t;
+        nextBlock = nextBlock->next;
+    } while (nextBlock != READY_QUEUE->tail);
+
+    nextBlock = REAP_QUEUE->head;
+    do {
+        tcb *t = (tcb *) nextBlock->data;
+        if (t->pthread_id == tid)
+            return t;
+
+        nextBlock = nextBlock->next;
+    } while (nextBlock != REAP_QUEUE->tail);
+    return NULL;
+}

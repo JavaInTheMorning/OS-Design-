@@ -3,17 +3,33 @@
  Circular Doubly linked list implementation of Queue. Supports push, pop and peak operations.
  All operations are O(1).
 */
+#include <signal.h>
+#include <stdlib.h>
 #include "Queue.h"
 
-Queue *create_queue() {
-    Queue *queue = (Queue *) malloc(sizeof(Queue));
+Queue *create_queue(int maxPriority) {
+    Queue *queue = (Queue *) malloc(sizeof(Queue) * (maxPriority + 1));
     if (!queue) {
         return NULL;
     }
 
-    queue->numNodes = 0;
-    queue->head = queue->tail = NULL;
+    int priority = 0;
+    for (; priority < maxPriority; priority++) {
+        (queue + priority)->numNodes = 0;
+        (queue + priority)->head = (queue + priority)->tail = NULL;
+    }
+
     return queue;
+}
+
+int release_queue(Queue *queue) {
+    QueueNode *node = queue->head;
+    for (; node != queue->tail; node = node->next) {
+        free(node->data);
+        free(node);
+    }
+
+    free(queue);
 }
 
 QueueNode *queue_pop(Queue *queue) {
@@ -36,9 +52,10 @@ QueueNode *queue_pop(Queue *queue) {
 }
 
 int queue_push(Queue *queue, void *element) {
-    if (!queue->head) {
+    if (queue->numNodes == 0) {
         queue->head = queue->tail = (QueueNode *) malloc(sizeof(QueueNode));
         if (!queue->head) {
+            perror("Could not allocate head for push.\n");
             return 0;
         }
 
@@ -50,6 +67,7 @@ int queue_push(Queue *queue, void *element) {
         queue->tail->next = (QueueNode *) malloc(sizeof(QueueNode));
         if (!queue->tail->next) {
             queue->tail->next = queue->head;
+            perror("Could not allocate tail for push.\n");
             return 0;
         }
 
@@ -66,16 +84,6 @@ int queue_push(Queue *queue, void *element) {
     return 1;
 }
 
-void headToTail(Queue* queue) {
-    if (queue->numNodes < 2) {
-        return;
-    }
-
-    QueueNode* node = queue_pop(queue);
-    if (!node) {
-        return;
-    }
-
-    queue_push(queue, node->data);
-    free(node);
+int queue_empty(Queue *queue) {
+    return queue->numNodes == 0;
 }

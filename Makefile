@@ -1,8 +1,9 @@
-CCFLAGS = -ggdb -g -pthread 
-all: my_pthread
+CC = gcc
+CFLAGS = -g -w -O0
 
-my_pthread: my_pthread.c
-	gcc $(CCFLAGS) my_pthread.c my_pthread_t.h Queue.c Queue.h -o my_pthread
+all:: clean my_pthread
 
+my_pthread:
+	$(CC) $(CFLAGS) my_pthread.h my_pthread.c Queue.c Queue.h parallelCal.c -o my_pthread
 clean:
 	rm -rf my_pthread

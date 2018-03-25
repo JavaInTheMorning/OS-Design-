@@ -21,7 +21,7 @@ typedef struct QueueNode {
  * Double linked Queue with access to both head and tail nodes.
  */
 typedef struct {
-    int numNodes;
+    size_t numNodes;
 
     QueueNode *head;
     QueueNode *tail;
@@ -31,7 +31,9 @@ typedef struct {
  * Constructs an empty Doubly Circular Linked List Queue.
  * @return An instance of the @Queue struct or NULL if the @Queue could not be allocated.
  */
-Queue *create_queue();
+Queue *create_queue(int maxPriority);
+
+int release_queue(Queue *);
 
 /**
  * Pops the 'head' of the @Queue.
@@ -46,8 +48,9 @@ QueueNode *queue_pop(Queue *);
 int queue_push(Queue *, void *);
 
 /**
- * Moves the @QueueNode from the front of the queue to the tail.
+ * Checks if the node count is zero.
+ * @return If the node count is zero then one is returned else zero.
  */
-void headToTail(Queue *);
+int queue_empty(Queue *);
 
 #endif //USER_THREADS_QUEUE_H

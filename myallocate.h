@@ -27,6 +27,12 @@ typedef struct block{
     struct block *next; //pointer to next block's metadata
 
 };
+typedef struct page{
+    sig_atomic_t count ; //number of references to page
+    void *virtual; //kernel virtual address of page, if it mapped into kernel, null otherwise
+    unsigned long flags ; //status of page, used for read/write procetions 
+
+};
 
 typedef enum {
     TYPE_USER, TYPE_THREAD

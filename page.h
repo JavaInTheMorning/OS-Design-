@@ -23,6 +23,15 @@ typedef struct page{
     // frame number(physical) that the page is mapped to(virtual)
     int *pageFrameNumber;
 
+    // Set equal to Macro PAGESIZE on initialization
+    int *pageSize;
+
+    // For storing virtual address the page corresponds too.
+    void *virtualAddress;
+
+    // Offset for mapping page to corresponding frame
+    int *offset;
+
     // List of memory chunks that belong to the page
     queue* pageBlockList;
 };

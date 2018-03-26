@@ -5,8 +5,6 @@
 
 
 #include "myallocate.h"
-#include<stddef.h>
-#include<stdio.h>
 
 
 void initialize(struct block *ptr) {

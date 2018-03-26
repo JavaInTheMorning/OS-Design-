@@ -11,9 +11,8 @@
 #include<stddef.h>
 #include<stdio.h>
 
-#define THREADREQ 1
-#define FREE '1'
-#define NOT_FREE '0'
+#define FREE 1
+#define NOT_FREE 0
 
 // Macros for using our implementation
 #define malloc( x ) myAllocate( x , __FILE__ , __LINE__ )
@@ -24,7 +23,7 @@
 
 // Struct for story allocated memory blocks,
 typedef struct block{
-    char free ; //is block free or already allocated, if free set 1 otherwise 0
+    int free ; //is block free or already allocated, if free set 1 otherwise 0
     size_t size ; //size of given block allocated
     struct block *next; //pointer to next block's metadata
     struct block *prev; // pointer to prev block's metadata

@@ -5,7 +5,7 @@
 
 
 #include "myallocate.h"
-#include <stdio.h>
+
 
 static int findFreeSpace()
 {
@@ -17,10 +17,9 @@ static int findFreeSpace()
             // return index in array of pointers that's free/not initialized
             return i;
         }
-        //Symbolizes that memory is full and there are no free pointers
-        return -1;
-
     }
+    //Symbolizes that memory is full and there are no free pointers
+    return -1;
 }
 
 void initialize()
@@ -46,72 +45,61 @@ void* myAllocate(size_t sizeBits, char *fileName, int lineNum)
 {
     block *current, *next; //the current and next memory blocks to set the new(next) pointer to the allocated memory chunk
 
-    // Check to make sure the user is requesting more than 0 bytes
-    if(sizeBits == 0)
-    {
-        fprintf(stderr, "Error: 0 bytes requested. FILE: '%s' LINE: '%d'\n",fileName, lineNum);
-        return 0;
-    }
-
-    // If the necessary resources haven't been initialized -> initialized them
-    if (!initialized)
-        initialize();
-
-    // set the current block to the root for traversing through memory
-    current = blockRoot;
-    do
-    {
-        if(current->size < sizeBits || current->free == NOT_FREE)
-        {
-            // If the size requested is larger than the current size available or it's not free-> continue
-            current = current->next;
+        // Check to make sure the user is requesting more than 0 bytes
+        if (sizeBits == 0) {
+            fprintf(stderr, "Error: 0 bytes requested. FILE: '%s' LINE: '%d'\n", fileName, lineNum);
+            return 0;
         }
-        else if(current->size <(sizeBits + sizeof(block)))
-        {
-            // The chunk is large enough to store memory request but not big enough to store enough metadata for next request
-            // Thus, can't do anymore requests in this chunk -> set to notFree
-            current->free = NOT_FREE;
-            //return memory request
-            return (char*)current + sizeof(block);
-        }
-        else
-        {
-            // Otherwise it found a spot that's free & has enough space for the metadata/size of the next chunk
 
-            // initialize the next chunk & it's attributes to append to the blockList for future use
-            // Next location will be an offset from the location of current plus the metadata/data size
-            next = (block*)((char*)current + sizeof(block) + sizeBits);
-            // set the next block to point back to the current block
-            next->prev = current;
-            // set the next's next block to point to what the current block is pointing at
-            next->next = current->next;
-            // Initialize the size left available to the current size - metadata & data
-            next->size = current->size - sizeof(block) - sizeBits;
-            // Now let future calls know that this chunk is now free for allocation
-            next->free = FREE;
-            // Get the nextfreespace to store this new pointer
-            blockList[findFreeSpace()] = next;
+        // If the necessary resources haven't been initialized -> initialized them
+        if (!initialized)
+            initialize();
 
-            //Initialize the current pointer to be returned to memory allocation call
-            // Set size to the size requested
-            current->size = sizeBits;
-            // Set that it is no longer free
-            current->free = NOT_FREE;
-            // Set it's next to the new free block just initialized
-            current->next = next;
-            // Return pointer
-            return (char*)current + sizeof(block);
-        }
-        // While current is != null
-    } while(current != 0);
+        // set the current block to the root for traversing through memory
+        current = blockRoot;
+        do {
+            if (current->size < sizeBits || current->free == NOT_FREE) {
+                // If the size requested is larger than the current size available or it's not free-> continue
+                current = current->next;
+            } else if (current->size < (sizeBits + sizeof(block))) {
+                // The chunk is large enough to store memory request but not big enough to store enough metadata for next request
+                // Thus, can't do anymore requests in this chunk -> set to notFree
+                current->free = NOT_FREE;
+                //return memory request
+                return (char *) current + sizeof(block);
+            } else {
+                // Otherwise it found a spot that's free & has enough space for the metadata/size of the next chunk
 
-    // The memory allocation failed
-    fprintf(stderr, "Not enough space available for memory request of size %d bytes. FILE: '%s' LINE: '%d'\n",sizeBits,fileName,lineNum);
-}
+                // initialize the next chunk & it's attributes to append to the blockList for future use
+                // Next location will be an offset from the location of current plus the metadata/data size
+                next = (block *) ((char *) current + sizeof(block) + sizeBits);
+                // set the next block to point back to the current block
+                next->prev = current;
+                // set the next's next block to point to what the current block is pointing at
+                next->next = current->next;
+                // Initialize the size left available to the current size - metadata & data
+                next->size = current->size - sizeof(block) - sizeBits;
+                // Now let future calls know that this chunk is now free for allocation
+                next->free = FREE;
+                // Get the nextfreespace to store this new pointer
+                blockList[findFreeSpace()] = next;
 
-void merge() { //to help elimatante space, merge consective free blocks of data
+                //Initialize the current pointer to be returned to memory allocation call
+                // Set size to the size requested
+                current->size = sizeBits;
+                // Set that it is no longer free
+                current->free = NOT_FREE;
+                // Set it's next to the new free block just initialized
+                current->next = next;
+                // Return pointer
+                return (char *) current + sizeof(block);
+            }
+            // While current is != null
+        } while (current != 0);
 
-
+        // The memory allocation failed
+        fprintf(stderr, "Not enough space available for memory request of size %d bytes. FILE: '%s' LINE: '%d'\n",
+                sizeBits, fileName, lineNum);
 }
 
 void myDeAllocate(void *ptr, char *fileName, int lineNum) {

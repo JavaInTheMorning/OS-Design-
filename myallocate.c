@@ -5,94 +5,173 @@
 
 
 #include "myallocate.h"
+#include <stdio.h>
 
+static int findFreeSpace()
+{
+    int i;
+    for(i = 0; i < sizePerBlock; i++)
+    {
+        if(blockList[i] == 0)
+        {
+            // return index in array of pointers that's free/not initialized
+            return i;
+        }
+        //Symbolizes that memory is full and there are no free pointers
+        return -1;
 
-void initialize(struct block *ptr) {
-    blocklist->size = BLOCK_SIZE -sizeof(block); //avaialbbe space for malloc
-    blocklist->free = '1'; // initalize the block to signal it is free
-    blocklist->next = NULL;
+    }
 }
 
-void split(block *fill, size_t size) {//use to split memory for a requested sized that is smaller than what we have
-    block *partition = (void *) ((void *) fill + size + sizeof(block));
-    partition->size = (fill->size) - size - sizeof(block);
-    partition->free = '1';
-    partition->next = fill->next;
-    fill->size = size;
-    fill->free = '0';
-    fill->next = partition->next;
+void initialize()
+{
+    //On initialization
 
+    // Set root ptr to the memory array
+    blockRoot = (block*) memory;
+    // initialize prev/next to null
+    blockRoot->prev = 0;
+    blockRoot->next = 0;
+    // Initialize root size to be total memory available - metadata for root
+    blockRoot->size = BLOCK_SIZE - sizeof(block);
+    // Initialize the block to be free
+    blockRoot->free = '1';
+    // signal that the initialization has taken place
+    initialized = 1;
+    // Set the first free pointer in block list to point to the beginning of memory
+    blockList[findFreeSpace()] = memory;
 }
 
-void* myAllocate(size_t sizeBits) {
-    block *current, *prev; //the current and previous memory blocks
+void* myAllocate(size_t sizeBits, char *fileName, int lineNum)
+{
+    block *current, *next; //the current and next memory blocks to set the new(next) pointer to the allocated memory chunk
 
-    if (blocklist->size >= BLOCK_SIZE){
-        printf("Error, not initialized");
-    }
-    //partiation the memory block
-
-    if (sizeBits >= sizeof(blocklist->size)) {
-        printf("error, request of memory too large");
-    }
-
-    current = blocklist; //set pointer to first block;
-
-    //loop through to find the frist free block to use for allocation that is big enough
-    while (((current->size < sizeBits) || (current->free == 0)) && (current->next != NULL)) {
-        prev = current;
-        current = current->next;
-    }//will loop until find a block that can be allocated
-
-    //case 1, requested size fits
-    if (sizeBits >= 8) { //for large allocations
-        current->pos = prev->pos - sizeBits;                            /**********|*****|*****/
-        current->free = '0';
-        current->next = NULL;
-        return (void *)(current->pos);
-
-
-    } else { //for small allocations
-        current->pos = prev->pos + prev->size; /*|******/
-        current->free = '0' ;
-        current->next = NULL;
-        prev->next = current;//set prev next to current block that was filled
-        return (void *)(current->pos);
+    // Check to make sure the user is requesting more than 0 bytes
+    if(sizeBits == 0)
+    {
+        fprintf(stderr, "Error: 0 bytes requested. FILE: '%s' LINE: '%d'\n",fileName, lineNum);
+        return 0;
     }
 
+    // If the necessary resources haven't been initialized -> initialized them
+    if (!initialized)
+        initialize();
+
+    // set the current block to the root for traversing through memory
+    current = blockRoot;
+    do
+    {
+        if(current->size < sizeBits || current->free == NOT_FREE)
+        {
+            // If the size requested is larger than the current size available or it's not free-> continue
+            current = current->next;
+        }
+        else if(current->size <(sizeBits + sizeof(block)))
+        {
+            // The chunk is large enough to store memory request but not big enough to store enough metadata for next request
+            // Thus, can't do anymore requests in this chunk -> set to notFree
+            current->free = NOT_FREE;
+            //return memory request
+            return (char*)current + sizeof(block);
+        }
+        else
+        {
+            // Otherwise it found a spot that's free & has enough space for the metadata/size of the next chunk
+
+            // initialize the next chunk & it's attributes to append to the blockList for future use
+            // Next location will be an offset from the location of current plus the metadata/data size
+            next = (block*)((char*)current + sizeof(block) + sizeBits);
+            // set the next block to point back to the current block
+            next->prev = current;
+            // set the next's next block to point to what the current block is pointing at
+            next->next = current->next;
+            // Initialize the size left available to the current size - metadata & data
+            next->size = current->size - sizeof(block) - sizeBits;
+            // Now let future calls know that this chunk is now free for allocation
+            next->free = FREE;
+            // Get the nextfreespace to store this new pointer
+            blockList[findFreeSpace()] = next;
+
+            //Initialize the current pointer to be returned to memory allocation call
+            // Set size to the size requested
+            current->size = sizeBits;
+            // Set that it is no longer free
+            current->free = NOT_FREE;
+            // Set it's next to the new free block just initialized
+            current->next = next;
+            // Return pointer
+            return (char*)current + sizeof(block);
+        }
+        // While current is != null
+    } while(current != 0);
+
+    // The memory allocation failed
+    fprintf(stderr, "Not enough space available for memory request of size %d bytes. FILE: '%s' LINE: '%d'\n",sizeBits,fileName,lineNum);
 }
 
 void merge() { //to help elimatante space, merge consective free blocks of data
-    block *current, *prev;
-    current = blocklist;
 
-    while (current && current->next) {
 
-        if ((current->free) && (current->next->free)) {
-            current->size += (current->next->size + sizeof(block));
-            current->next = current->next->next;
+}
+
+void myDeAllocate(void *ptr, char *fileName, int lineNum) {
+    block *current, *next, *prev;
+
+    if(ptr == NULL)
+    {
+        fprintf(stderr, "ERROR: Ptr is NULL. FILE: '%s' LINE: '%d'\n", fileName, lineNum);
+        return;
+    }
+        // Set current
+        current = (block*)((char*)ptr - sizeof(block));
+        int i;
+        // Flag to check ptr has been malloced & not freed yet
+        int isFreeable;
+
+        for(i = 0; i < sizePerBlock; i++)
+        {
+            if(current == blockList[i] && current->free == NOT_FREE)
+            {
+                // if the ptr to be freed is found in the malloced list, & it's NOT been freed
+                // Then it's freeable
+                isFreeable = 1;
+                break;
+            }
         }
 
+    if(!isFreeable)
+    {
+        fprintf(stderr, "ERROR: Pointer has not been malloced, or has already been freed. FILE: '%s' LINE: '%d'\n", fileName, lineNum);
+        return;
+    }
+
+    // Merge with previous chunk
+    if((prev = current->prev) != 0 && prev->free == FREE)
+    {
+        // Merge the previous chunk with this chunk since they're free
+        prev->size += sizeof(block) + current->size;
+        // To free it remove it from the blocklist
+        blockList[i] = 0;
+    }
+    else
+    {
+        current->free = FREE;
         prev = current;
-        current = current->next;
     }
 
-
+    // Merge with next chunk
+    if((next = current->next) != 0 && next->free == FREE)
+    {
+        prev->size += sizeof(block) + next->size;
+        prev->next = next->next;
+        for(i = 0; i < sizePerBlock; i++)
+        {
+            if(next == blockList[i])
+            {
+                blockList[i] = 0;
+                break;
+            }
+        }
+    }
 }
-
-void myDeAllocate(void *ptr) {
-    if (((void *) memory <= ptr) && (ptr <= (void *) memory + BLOCK_SIZE)){
-
-        block *current = ptr;
-        current = current - sizeof(current);
-        current->free = 1;
-        merge();
-    }
-    else{
-        printf("unable to deallocate given pointer");
-    }
-}
-
-
-
 

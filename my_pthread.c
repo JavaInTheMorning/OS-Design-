@@ -1,4 +1,6 @@
 #include "my_pthread.h"
+#include "myallocate.h"
+#include <stdio.h>
 
 void prepareScheduler(long period) {
     READY_QUEUE = create_queue(DEFAULT_PRIORITY);

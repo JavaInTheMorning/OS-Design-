@@ -24,7 +24,7 @@
 typedef uint my_pthread_t;
 
 typedef enum ThreadState {
-    STATE_RUNNING, STATE_CANCELED, STATE_COMPLETE
+    STATE_RUNNING, STATE_COMPLETE
 } ThreadState;
 
 typedef enum {

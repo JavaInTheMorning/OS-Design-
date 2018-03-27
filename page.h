@@ -4,11 +4,10 @@
 
 #ifndef ASST1_PAGE_H
 #define ASST1_PAGE_H
-#define PAGESIZE = sysconf(_SC_PAGE_SIZE)
 
 #include "Queue.h"
 
-typedef struct page{
+typedef struct page {
     // Either 'r'(Read),'w'(Write),'e'(Execute)
     char *protectionBit;
 
@@ -34,9 +33,8 @@ typedef struct page{
     int *offset;
 
     // List of memory chunks that belong to the page
-    Queue* pageBlockList;
+    Queue *pageBlockList;
 };
-
 
 
 #endif //OS_DESIGN_PROJECT3_PAGE_H

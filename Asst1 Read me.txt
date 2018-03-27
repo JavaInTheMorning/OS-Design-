@@ -1,0 +1,19 @@
+Phase A: Malloc/Dealloc
+
+In this phase, we followed the desing instructions to start with a char array, memory, of 8MB to emulate the 
+physical memory 'block' of a system. All memory operations are revolved around this static char.  The first 
+step was to initalize the block of memory using our block struct defined in the myallocate.h file.
+The blockRoot is a pointer to the start address of the memory block. We initialize a double linked list of the block with 
+pointers to the next and prev blocks of memory.  The size of the block is initialized to the static memory
+size minus the size of the metadata of the root block. The blockRoot must be initialized to signal that 
+it is free to be filled, which we set to 1.  
+
+After the emulated memory is initialized, we procced to implement the myAllocate function, used to dynamically allocate 
+space in memory.  After checking if the requested size can fit into memory and the current block is free to be allocated,
+we can allocated the block of memory.  We set the pointer to the next block of memory from the current block with an offset of
+size of block plus metadata for a block. THe myAllocate function returns a void pointer to the start of the memory block
+given for allocation.  
+
+For the myDellocate function, we take the pointer bassed by refence of the block of memory to be deallocated. After checking
+the given pointer has been previously allocated, we  merge the blocks of memory surrounding the deallocated blocks 
+together.  

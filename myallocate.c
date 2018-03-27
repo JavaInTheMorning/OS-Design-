@@ -32,8 +32,6 @@ void initialize() {
     blockRoot->size = BLOCK_SIZE - sizeof(block);
     // Initialize the block to be free
     blockRoot->free = '1';
-    // signal that the initialization has taken place
-    initialized = 1;
     // Set the first free pointer in block list to point to the beginning of memory
     blockList[findFreeSpace()] = memory;
 }
@@ -48,7 +46,7 @@ void *myAllocate(size_t sizeBits, char *fileName, int lineNum) {
     }
 
     // If the necessary resources haven't been initialized -> initialized them
-    if (!initialized)
+    if (!blockRoot)
         initialize();
 
     // set the current block to the root for traversing through memory
@@ -151,8 +149,8 @@ void myDeAllocate(void *ptr, char *fileName, int lineNum) {
 }
 
 
-struct AddressMeta calculateAddressMeta(long addressHash) {
-    struct AddressMeta meta;
+AddressMeta calculateAddressMeta(long addressHash) {
+    AddressMeta meta;
 
     meta.offset = addressHash & ((int) pow(2.0, (double) NUM_OFFSET_BITS));
     meta.address = (addressHash >> (long) ADDRESS_SHIFT);

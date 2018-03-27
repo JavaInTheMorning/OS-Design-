@@ -5,7 +5,7 @@
 #ifndef USER_THREADS_QUEUE_H
 #define USER_THREADS_QUEUE_H
 
-#include <malloc.h>
+#include <stdlib.h>
 #include <stdio.h>
 
 /**

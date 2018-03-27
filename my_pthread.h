@@ -1,6 +1,9 @@
 #ifndef MY_PTHREAD_T_H
 #define MY_PTHREAD_T_H
 
+
+#define _XOPEN_SOURCE 700
+
 #include <ucontext.h>
 #include <stdlib.h>
 
@@ -21,10 +24,10 @@
 #define NUM_CONTEXT_ARGS 2
 
 
-typedef uint my_pthread_t;
+typedef size_t my_pthread_t;
 
 typedef enum ThreadState {
-    STATE_RUNNING, STATE_COMPLETE
+    STATE_RUNNING, STATE_CANCELED, STATE_COMPLETE
 } ThreadState;
 
 typedef enum {

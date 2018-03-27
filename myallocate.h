@@ -5,12 +5,17 @@
 #ifndef ASST1_MYALLOCATE_H
 #define ASST1_MYALLOCATE_H
 
+
+#define _XOPEN_SOURCE 700
+
 #include <unistd.h>
 #include <sys/types.h>
 #include <ucontext.h>
 #include <pthread.h>
 #include<stddef.h>
 #include<stdio.h>
+#include "page.h"
+#include "frame.h"
 
 #define FREE 1
 #define NOT_FREE 0
@@ -28,34 +33,48 @@
 #define ADDRESS_SHIFT ((sizeof(long) * 4) - NUM_OFFSET_BITS)
 
 // Struct for story allocated memory blocks,
-typedef struct block {
+typedef struct {
     int free; //is block free or already allocated, if free set 1 otherwise 0
     size_t size; //size of given block allocated
     struct block *next; //pointer to next block's metadata
     struct block *prev; // pointer to prev block's metadata
 } block;
 
-typedef struct AddressMeta {
-    long address, offset;
-};
 
 // enum for determining if its a USER or SYSTEM thread calling the malloc/free
 typedef enum {
     TYPE_USER, TYPE_THREAD
 } RequestType;
 
-// Flag to know whether or not to call initialize()
-static int initialized = 0;
+/**
+ * The size of each memory chunk.
+ */
+#define sizePerBlock (BLOCK_SIZE / sizeof(block) + 1)
+
+/**
+ * The number of max threads.
+ */
+#define MAX_NUM_THREADS 0xFF
+
 // static pointer to point to the root of memory
 static block *blockRoot;
 
 // Initialize memory block for simulating main memory
 static char memory[BLOCK_SIZE];
-// Set size of each memory chunk
-static const int sizePerBlock = BLOCK_SIZE / sizeof(block) + 1;
 // Create an array to store pointers to memory chunk blocks in main memory
 //Initialize every index to 0, to make searching for a free block easy in findFreeSpace()
 static void *blockList[BLOCK_SIZE / sizeof(block) + 1] = {0};
+
+/**
+ * List of all the page tables in the program.
+ * TODO possibly only store one at a time and then page swap.
+ */
+static pageTable pageDir[MAX_NUM_THREADS];
+
+/**
+ * List of all the frames in the program.
+ */
+static Frame frameList[MAX_NUM_THREADS];
 
 // Method for initalizing
 void initialize();
@@ -69,7 +88,7 @@ void *myAllocate(size_t size, char *file, int line);
 // Free implementation
 void myDeAllocate(void *p, char *file, int line);
 
-struct AddressMeta calculateAddressMeta(long addressHash);
+AddressMeta calculateAddressMeta(long addressHash);
 
 
 #endif //ASST1_MYALLOCATE_H

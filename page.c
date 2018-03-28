@@ -51,17 +51,3 @@ void setReferenceBit(Page *page, int referenceBit) {
 void updateAllAttributes(Page *page, ProtectionType type, long presentBit, long validBit, long referenceBit) {
     page->attributes = referenceBit << REFERENCE_BIT | validBit << VALID_BIT | presentBit << PRESENT_BIT | type;
 }
-
-
-int main(void) {
-    Page page;
-
-    setProtectionType(&page, READ_WRITE);
-    setPresentBit(&page, 1); // TODO maybe constants?
-
-    setReferenceBit(&page, 50);
-
-    printf("%d %d %d\n", getProtectionType(&page), getPresentBit(&page), getReferenceBit(&page));
-
-    return 0;
-}

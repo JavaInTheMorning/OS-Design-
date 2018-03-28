@@ -16,6 +16,7 @@
 #include<stdio.h>
 #include "page.h"
 #include "frame.h"
+#include <tgmath.h>
 
 #define FREE 1
 #define NOT_FREE 0
@@ -26,11 +27,6 @@
 
 // Declare main memory to be 8KB
 #define BLOCK_SIZE 8000000
-
-#define PAGESIZE sysconf(_SC_PAGE_SIZE)
-
-#define NUM_OFFSET_BITS log2(PAGESIZE)
-#define ADDRESS_SHIFT ((sizeof(long) * 4) - NUM_OFFSET_BITS)
 
 // Struct for story allocated memory blocks,
 typedef struct {

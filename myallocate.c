@@ -2,9 +2,6 @@
 // Created by dholl_000 on 3/24/2018.
 //
 
-
-
-#include <tgmath.h>
 #include "myallocate.h"
 
 

@@ -4,9 +4,9 @@
 
 #ifndef ASST1_PAGE_H
 #define ASST1_PAGE_H
-#define PAGESIZE = sysconf(_SC_PAGE_SIZE)
 
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "Queue.h"
 #include "my_pthread.h"
@@ -16,8 +16,16 @@
 #define VALID_BIT 4
 #define REFERENCE_BIT 5
 
+// Declare main memory to be 8KB
+#define BLOCK_SIZE 8000000
+
+#define PAGE_SIZE sysconf(_SC_PAGE_SIZE)
+
+#define NUM_OFFSET_BITS log2(PAGE_SIZE)
+#define ADDRESS_SHIFT ((sizeof(long) * 8) - NUM_OFFSET_BITS)
+
 typedef enum {
-   NONE = 0x0, READ = 0x1, WRITE = 0x2, READ_WRITE = 0x7
+    NONE = 0x0, READ = 0x1, WRITE = 0x2, READ_WRITE = 0x7
 } ProtectionType;
 
 typedef struct {

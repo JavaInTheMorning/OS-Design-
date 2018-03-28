@@ -3,8 +3,11 @@
 //
 
 #ifndef ASST1_FRAME_H
-#define ASST1_PROJECT3_FRAME_H
+#define ASST1_FRAME_H
 
+#include "page.h"
+
+#define NUM_FRAMES (BLOCK_SIZE / PAGE_SIZE)
 
 typedef struct {
     /**
@@ -20,7 +23,7 @@ typedef struct {
     /**
      * The boundaries of the memory array block.
      */
-    int minBound, highBound; // inclusive, exclusive
+    long lowerBound, upperBound; // inclusive, exclusive
 
     /**
      * The current thread accessing the frame.
@@ -30,8 +33,7 @@ typedef struct {
 } Frame;
 
 
-int init();
+Frame *init();
 
 
-
-#endif //OS_DESIGN_PROJECT3_FRAME_H
+#endif //ASST1_FRAME_H

@@ -26,7 +26,7 @@ void *myAllocate(size_t sizeBits, char *fileName, int lineNum, RequestType type)
         initialize();
 
     // set the current block to the root for traversing through memory
-    current = frame->nextBlock;
+    current = frame->blockRoot;
     do {
         if (current->size < sizeBits || current->free == NOT_FREE) {
             // If the size requested is larger than the current size available or it's not free-> continue
@@ -51,8 +51,12 @@ void *myAllocate(size_t sizeBits, char *fileName, int lineNum, RequestType type)
             next->size = current->size - sizeof(block) - sizeBits;
             // Now let future calls know that this chunk is now free for allocation
             next->free = FREE;
-            // Get the nextfreespace to store this new pointer
-            frame->blockList[findFreeSpace()] = next;
+            // Get the next free space to store this new pointer
+
+            int blockPosition = (void*) next - (void*) current;
+            for (; blockPosition >= 0; blockPosition--) {
+                frame->blockList[blockPosition] = ((void*)current) + blockPosition;
+            }
 
             //Initialize the current pointer to be returned to memory allocation call
             // Set size to the size requested
@@ -84,10 +88,10 @@ void myDeAllocate(void *ptr, char *fileName, int lineNum, RequestType type) {
     current = (block *) ((char *) ptr - sizeof(block));
     int i;
     // Flag to check ptr has been malloced & not freed yet
-    int isFreeable;
+    int isFreeable = 0;
 
-    for (i = 0; i < sizePerBlock; i++) {
-        if (current == frame->blockList[i] && current->free == NOT_FREE) {
+    for (i = 0; i < CHUNK_SIZE; i++) {
+        if (current == (block *) frame->blockList[i] && current->free == NOT_FREE) {
             // if the ptr to be freed is found in the malloced list, & it's NOT been freed
             // Then it's freeable
             isFreeable = 1;
@@ -102,7 +106,7 @@ void myDeAllocate(void *ptr, char *fileName, int lineNum, RequestType type) {
     }
 
     // Merge with previous chunk
-    if ((prev = current->prev) != 0 && prev->free == FREE) {
+    if ((prev = (block *) current->prev) != 0 && prev->free == FREE) {
         // Merge the previous chunk with this chunk since they're free
         prev->size += sizeof(block) + current->size;
         // To free it remove it from the blocklist
@@ -113,16 +117,18 @@ void myDeAllocate(void *ptr, char *fileName, int lineNum, RequestType type) {
     }
 
     // Merge with next chunk
-    if ((next = current->next) != 0 && next->free == FREE) {
+    if ((next = (block *) current->next) != 0 && next->free == FREE) {
         prev->size += sizeof(block) + next->size;
         prev->next = next->next;
-        for (i = 0; i < sizePerBlock; i++) {
-            if (next == frame->blockList[i]) {
+        for (i = 0; i < CHUNK_SIZE; i++) {
+            if (next == (block *) frame->blockList[i]) {
                 frame->blockList[i] = 0;
                 break;
             }
         }
     }
+
+    *(&ptr) = NULL;
 }
 
 

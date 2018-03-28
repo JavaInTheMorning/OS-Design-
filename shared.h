@@ -20,6 +20,38 @@
  */
 #define _XOPEN_SOURCE 700
 
+#define FREE 1
+#define NOT_FREE 0
+
+/**
+ * Main memory's size is 8MB
+ */
+#define BLOCK_SIZE 8000000
+
+/**
+ * The system's page size.
+ */
+#define PAGE_SIZE 4096
+/**
+ * The number of page frames.
+ */
+#define NUM_FRAMES (BLOCK_SIZE / PAGE_SIZE)
+
+/**
+ * The size of each chunk within a page or frame.
+ */
+#define CHUNK_SIZE ((PAGE_SIZE / sizeof(block)) + 1)
+
+/**
+ * The number of offset bits.
+ */
+#define NUM_OFFSET_BITS log2(PAGE_SIZE)
+
+/**
+ * The number of address bits.
+ */
+#define ADDRESS_SHIFT ((sizeof(long) * 8) - NUM_OFFSET_BITS)
+
 
 typedef unsigned long my_pthread_t;
 
@@ -88,19 +120,14 @@ typedef struct {
     my_pthread_t threadId;
 
     /**
-     * The number of blocks possible.
-     */
-    size_t numBlocks;
-
-    /**
      * The chunks total size.
      */
-    block *nextBlock;
+    block *blockRoot;
 
     /**
-     * The block list.
+     * The list of blocks within the frame.
      */
-    char *blockList;
+    long blockList[CHUNK_SIZE];
 } Frame;
 
 typedef struct {
@@ -130,36 +157,7 @@ typedef struct {
     Page *pageList;
 } pageTable;
 
-#define FREE 1
-#define NOT_FREE 0
 
-// Macros for using our implementation
-#define malloc(x) myAllocate( x , __FILE__ , __LINE__, TYPE_THREAD)
-#define free(x) myDeAllocate( x , __FILE__ , __LINE__, TYPE_THREAD)
-
-/**
- * Main memory's size is 8MB
- */
-#define BLOCK_SIZE 8000000
-
-/**
- * The system's page size.
- */
-#define PAGE_SIZE 4096
-/**
- * The number of page frames.
- */
-#define NUM_FRAMES (BLOCK_SIZE / PAGE_SIZE)
-
-/**
- * The number of offset bits.
- */
-#define NUM_OFFSET_BITS log2(PAGE_SIZE)
-
-/**
- * The number of address bits.
- */
-#define ADDRESS_SHIFT ((sizeof(long) * 8) - NUM_OFFSET_BITS)
 
 /**
  * The protection bit range.
@@ -178,11 +176,6 @@ typedef struct {
  * The reference bit range.
  */
 #define REFERENCE_BIT 5
-
-/**
- * The size of each memory chunk.
- */
-#define sizePerBlock (BLOCK_SIZE / sizeof(block) + 1)
 
 /**
  * The number of max threads.
@@ -260,14 +253,11 @@ static pageTable pageDir[MAX_NUM_THREADS];
  */
 static Frame frameList[NUM_FRAMES];
 
-
-Frame* getActiveFrame() {
-    if (!nextBlock) {
-        return frameList;
-    }
-    return frameList + nextBlock->pthread_id;
-}
-
+/**
+ * Returns the active frame.
+ * @return Active frame.
+ */
+Frame *getActiveFrame();
 
 #endif //USER_THREADS_SHARED_H
 

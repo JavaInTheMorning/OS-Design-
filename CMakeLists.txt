@@ -3,5 +3,5 @@ project(User_Threads)
 
 set(CMAKE_CXX_STANDARD 11)
 
-set(SOURCE_FILES shared.h my_pthread.c my_pthread.h Queue.c Queue.h frame.c frame.h page.c page.h myallocate.c myallocate.h)
+set(SOURCE_FILES  my_pthread.c my_pthread.h Queue.c Queue.h frame.c frame.h page.c page.h myallocate.c myallocate.h shared.h parallelCalc.c)
 add_executable(User_Threads ${SOURCE_FILES})

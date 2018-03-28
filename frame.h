@@ -9,5 +9,6 @@
 
 
 Frame *initFrames();
+int findFreeSpace(Frame*);
 
 #endif //ASST1_FRAME_H

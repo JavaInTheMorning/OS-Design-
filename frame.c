@@ -2,6 +2,7 @@
 // Created by Daniel Finlay on 3/24/2018.
 //
 
+#include <memory.h>
 #include "frame.h"
 
 Frame *initFrames() {
@@ -17,22 +18,16 @@ Frame *initFrames() {
 
         frame->physicalNumber = physicalNumber;
 
-        frame->nextBlock = (block *) memory + lowerBound;
+        frame->blockRoot = (block *) (memory + lowerBound);
         // initialize prev/next to null
-        frame->nextBlock->prev = 0;
-        frame->nextBlock->next = 0;
+        frame->blockRoot->prev = 0;
+        frame->blockRoot->next = 0;
         // Initialize root size to be total memory available - metadata for root
-        frame->nextBlock->size = upperBound - lowerBound - sizeof(block);
+        frame->blockRoot->size = upperBound - lowerBound - sizeof(block);
         // Initialize the block to be free
-        frame->nextBlock->free = '1';
+        frame->blockRoot->free = FREE;
 
-        frame->numBlocks = (frame->nextBlock->size / sizeof(block)) + 1;
-
-        char blockList[frame->numBlocks] = {0};
-        frame->blockList = blockList;
-
-        frame->blockList[findFreeSpace(frame)] = memory + lowerBound;
-
+        memset(frame->blockList, 0, sizeof(frame->blockList));
     }
 
     return (Frame *) &frameList;
@@ -40,11 +35,18 @@ Frame *initFrames() {
 
 int findFreeSpace(Frame *frame) {
     int index;
-    for (index = 0; index < frame->numBlocks; index++) {
+    for (index = 0; index < CHUNK_SIZE; index++) {
         if (frame->blockList[index] == 0) { // return index in array of pointers that's free/not initialized
             return index;
         }
     }
 
     return -1;
+}
+
+Frame *getActiveFrame() {
+    if (!nextBlock) {
+        return frameList;
+    }
+    return frameList + nextBlock->pthread_id;
 }

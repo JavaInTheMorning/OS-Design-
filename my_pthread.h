@@ -17,47 +17,7 @@
 #include "my_pthread.h"
 #include "Queue.h"
 
-#define MAIN_THREAD_IDENTIFIER 1
-
-#define STACK_SIZE 0xFFFF
-
-#define NUM_CONTEXT_ARGS 2
-
-
-typedef size_t my_pthread_t;
-
-typedef enum ThreadState {
-    STATE_RUNNING, STATE_CANCELED, STATE_COMPLETE
-} ThreadState;
-
-typedef enum {
-    DEFAULT_PRIORITY, HIGH_PRIORITY, REALTIME_PRIORITY
-} ThreadPriority;
-typedef struct ThreadControlBlock {
-    my_pthread_t pthread_id, joinedThreadId;
-    ucontext_t *ucp;
-
-    void *returnPointer;
-    void *stack;
-
-    ThreadState state;
-} tcb;
-
-typedef struct {
-    Queue *waiting; //queue for all waiting locks
-} my_pthread_mutex_t;
-
-static Queue *READY_QUEUE;
-static Queue *REAP_QUEUE;
-
-static tcb *nextBlock;
-
-static struct itimerval it_values;
-static struct sigaction action;
-static sigset_t alarm_sigset;
-
-
-static my_pthread_t pthread_counter;
+#include "shared.h"
 
 void prepareScheduler(long period);
 

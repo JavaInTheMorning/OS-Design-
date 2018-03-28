@@ -3,9 +3,11 @@
 //
 
 #ifndef ASST1_FRAME_H
+#define ASST1_FRAME_H
+
+#include "shared.h"
 
 
-Frame *init();
-
+Frame *initFrames();
 
 #endif //ASST1_FRAME_H

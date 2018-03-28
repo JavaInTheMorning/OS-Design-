@@ -2,38 +2,17 @@
 // Created by dholl_000 on 3/24/2018.
 //
 
+
+
 #include "myallocate.h"
-
-
-static int findFreeSpace() {
-    int i;
-    for (i = 0; i < sizePerBlock; i++) {
-        if (blockList[i] == 0) {
-            // return index in array of pointers that's free/not initialized
-            return i;
-        }
-    }
-    //Symbolizes that memory is full and there are no free pointers
-    return -1;
-}
+#include "frame.h"
 
 void initialize() {
-    //On initialization
-
-    // Set root ptr to the memory array
-    blockRoot = (block *) memory;
-    // initialize prev/next to null
-    blockRoot->prev = 0;
-    blockRoot->next = 0;
-    // Initialize root size to be total memory available - metadata for root
-    blockRoot->size = BLOCK_SIZE - sizeof(block);
-    // Initialize the block to be free
-    blockRoot->free = '1';
-    // Set the first free pointer in block list to point to the beginning of memory
-    blockList[findFreeSpace()] = memory;
+    initFrames();
 }
 
-void *myAllocate(size_t sizeBits, char *fileName, int lineNum) {
+void *myAllocate(size_t sizeBits, char *fileName, int lineNum, RequestType type) {
+    Frame* frame = getActiveFrame();
     block *current, *next; //the current and next memory blocks to set the new(next) pointer to the allocated memory chunk
 
     // Check to make sure the user is requesting more than 0 bytes
@@ -43,11 +22,11 @@ void *myAllocate(size_t sizeBits, char *fileName, int lineNum) {
     }
 
     // If the necessary resources haven't been initialized -> initialized them
-    if (!blockRoot)
+    if (!initialized)
         initialize();
 
     // set the current block to the root for traversing through memory
-    current = blockRoot;
+    current = frame->nextBlock;
     do {
         if (current->size < sizeBits || current->free == NOT_FREE) {
             // If the size requested is larger than the current size available or it's not free-> continue
@@ -73,7 +52,7 @@ void *myAllocate(size_t sizeBits, char *fileName, int lineNum) {
             // Now let future calls know that this chunk is now free for allocation
             next->free = FREE;
             // Get the nextfreespace to store this new pointer
-            blockList[findFreeSpace()] = next;
+            frame->blockList[findFreeSpace()] = next;
 
             //Initialize the current pointer to be returned to memory allocation call
             // Set size to the size requested
@@ -93,7 +72,8 @@ void *myAllocate(size_t sizeBits, char *fileName, int lineNum) {
             sizeBits, fileName, lineNum);
 }
 
-void myDeAllocate(void *ptr, char *fileName, int lineNum) {
+void myDeAllocate(void *ptr, char *fileName, int lineNum, RequestType type) {
+    Frame* frame = getActiveFrame();
     block *current, *next, *prev;
 
     if (ptr == NULL) {
@@ -107,7 +87,7 @@ void myDeAllocate(void *ptr, char *fileName, int lineNum) {
     int isFreeable;
 
     for (i = 0; i < sizePerBlock; i++) {
-        if (current == blockList[i] && current->free == NOT_FREE) {
+        if (current == frame->blockList[i] && current->free == NOT_FREE) {
             // if the ptr to be freed is found in the malloced list, & it's NOT been freed
             // Then it's freeable
             isFreeable = 1;
@@ -126,7 +106,7 @@ void myDeAllocate(void *ptr, char *fileName, int lineNum) {
         // Merge the previous chunk with this chunk since they're free
         prev->size += sizeof(block) + current->size;
         // To free it remove it from the blocklist
-        blockList[i] = 0;
+        frame->blockList[i] = 0;
     } else {
         current->free = FREE;
         prev = current;
@@ -137,8 +117,8 @@ void myDeAllocate(void *ptr, char *fileName, int lineNum) {
         prev->size += sizeof(block) + next->size;
         prev->next = next->next;
         for (i = 0; i < sizePerBlock; i++) {
-            if (next == blockList[i]) {
-                blockList[i] = 0;
+            if (next == frame->blockList[i]) {
+                frame->blockList[i] = 0;
                 break;
             }
         }

@@ -3,7 +3,6 @@
 //
 
 #include "page.h"
-#include <sys/mman.h>
 
 ProtectionType getProtectionType(Page *page) {
     long attributes = page->attributes;
@@ -46,7 +45,6 @@ long getReferenceBit(Page *page) {
 void setReferenceBit(Page *page, int referenceBit) {
     updateAllAttributes(page, getProtectionType(page), getPresentBit(page), getValidBit(page), referenceBit);
 }
-
 
 void updateAllAttributes(Page *page, ProtectionType type, long presentBit, long validBit, long referenceBit) {
     page->attributes = referenceBit << REFERENCE_BIT | validBit << VALID_BIT | presentBit << PRESENT_BIT | type;

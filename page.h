@@ -3,7 +3,10 @@
 //
 
 #ifndef ASST1_PAGE_H
-#
+#define ASST1_PAGE_H
+
+#include "shared.h"
+
 // Method used to lookup Physical Frame from virtual page
 struct AddressMeta getFrameFromPage(AddressMeta pageaAddress, pageTable pt);
 
@@ -29,26 +32,4 @@ void setReferenceBit(Page *, int);
 void updateAllAttributes(Page *, ProtectionType, long, long, long);
 
 
-#endif //OS_DESIGN_PROJECT3_PAGE_H
-
-/*int main()
-{
-    // Get a pointer
-    int *p;
-    p = (int*) malloc(sizeof(int));
-    *p = 25;
-    printf("address: %p, value: %d\n", p, *p);
-    // access metadata
-    block *temp;
-    temp = (block*)((char*)p - sizeof(block));
-    if (temp->free == FREE)
-        printf("IS FREE\n");
-    else if (temp->free == NOT_FREE)
-        printf("NOT FREE\n");
-    printf("currentsize(%d):\n", temp->size);
-    printf("address: %p, value: %d\n", temp, *temp);
-    // Access value from metadata pointer
-    int *k;
-    k = (int*)((char*)temp + sizeof(block));
-    printf("address: %p, value: %d\n", k, *k);
-    printf("Success\n");*/
+#endif //ASST1_PAGE_H

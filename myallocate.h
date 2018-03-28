@@ -1,21 +1,20 @@
-//
-// Created by dholl_000 on 3/24/2018.
-//
+#ifndef MY_ALLOC_H
+#define MY_ALLOC_H
 
+#include <stdio.h>
+#include <strings.h>
+#include <tgmath.h>
 
-// Method for initalizing
+#include "shared.h"
+
 void initialize();
 
-//Get index of a free chunk(First fit)
 static int findFreeSpace();
 
-// Malloc implementation
-void *myAllocate(size_t size, char *file, int line);
+void *myAllocate(size_t size, char *file, int line, RequestType type);
 
-// Free implementation
-void myDeAllocate(void *p, char *file, int line);
+void myDeAllocate(void *p, char *file, int line, RequestType type);
 
 AddressMeta calculateAddressMeta(long addressHash);
 
-
-#endif //ASST1_MYALLOCATE_H
+#endif //MY_ALLOC_H

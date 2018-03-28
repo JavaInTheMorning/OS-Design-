@@ -14,7 +14,7 @@
 #define PROTECTION_BIT 1
 #define PRESENT_BIT 2
 #define VALID_BIT 3
-#define REFERENCE_BIT 11
+#define REFERENCE_BIT 4
 
 typedef enum {
     READ = 1, WRITE = 2, READ_WRITE = 3
@@ -58,6 +58,24 @@ struct AddressMeta getFrameFromPage(AddressMeta pageaAddress, pageTable pt);
 
 // Used to set a page of a given pageTable to a frame
 void *setPageToAFrame(AddressMeta pageAddress, pageTable pt);
+
+ProtectionType getProtectionType(Page *);
+
+void setProtectionType(Page *, ProtectionType);
+
+long getPresentBit(Page *);
+
+void setPresentBit(Page *, int);
+
+long getValidBit(Page *);
+
+void setValidBit(Page *, int);
+
+long getReferenceBit(Page *);
+
+void setReferenceBit(Page *, int);
+
+void updateAllAttributes(Page *, ProtectionType, long, long, long);
 
 
 #endif //OS_DESIGN_PROJECT3_PAGE_H

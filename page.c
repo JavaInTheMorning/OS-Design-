@@ -3,11 +3,12 @@
 //
 
 #include "page.h"
+#include <sys/mman.h>
 
 ProtectionType getProtectionType(Page *page) {
     long attributes = page->attributes;
 
-    return (ProtectionType) attributes & 0x3; // 0 - 3
+    return (ProtectionType) attributes & 0x7;
 }
 
 void setProtectionType(Page *page, ProtectionType type) {
@@ -39,7 +40,7 @@ void setValidBit(Page *page, int valid) {
 long getReferenceBit(Page *page) {
     long attributes = page->attributes;
 
-    return (attributes >> (VALID_BIT + 1)) & 0xFFFF;
+    return (attributes >> REFERENCE_BIT) & 0xFFFF;
 }
 
 void setReferenceBit(Page *page, int referenceBit) {

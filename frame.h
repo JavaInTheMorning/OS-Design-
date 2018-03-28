@@ -20,7 +20,7 @@ typedef struct {
     /**
      * The boundaries of the memory array block.
      */
-    int minBound, highBound;
+    int minBound, highBound; // inclusive, exclusive
 
     /**
      * The current thread accessing the frame.
@@ -28,5 +28,10 @@ typedef struct {
      */
     my_pthread_t threadId;
 } Frame;
+
+
+int init();
+
+
 
 #endif //OS_DESIGN_PROJECT3_FRAME_H

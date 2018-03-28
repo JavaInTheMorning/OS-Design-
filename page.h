@@ -11,13 +11,13 @@
 #include "Queue.h"
 #include "my_pthread.h"
 
-#define PROTECTION_BIT 1
-#define PRESENT_BIT 2
-#define VALID_BIT 3
-#define REFERENCE_BIT 4
+#define PROTECTION_BIT 2
+#define PRESENT_BIT 3
+#define VALID_BIT 4
+#define REFERENCE_BIT 5
 
 typedef enum {
-    READ = 1, WRITE = 2, READ_WRITE = 3
+   NONE = 0x0, READ = 0x1, WRITE = 0x2, READ_WRITE = 0x7
 } ProtectionType;
 
 typedef struct {
@@ -25,17 +25,16 @@ typedef struct {
 } AddressMeta;
 
 typedef struct {
+
     /**
      * Mask storing the attributes of the page.
      */
     long attributes;
 
-    // frame number(physical) that the page is mapped to(virtual)
-    // Has total page pointer, actual address & offset
-    struct AddressMeta *pageAddress;
-
-    // Set equal to Macro PAGESIZE on initialization
-    int *pageSize;
+    /**
+     * The boundaries of the assigned memory.
+     */
+    int lowerBound, upperBound;
 
     /**
      * The address and offset for frame.

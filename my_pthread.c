@@ -58,17 +58,17 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t *attr, void *(*funcAd
     if (!block->ucp) {
         free(block);
 
-        perror("Could not allocate user ucp protocol.");
+        perror("Could not allocate user ucp protocol.\n");
         return -1;
     }
 
     if (getcontext(block->ucp) == -1) {
-        perror("Could not get active context.");
+        perror("Could not get active context.\n");
         return -1;
     }
 
-    block->ucp->uc_stack.ss_sp = malloc(SIGSTKSZ);
-    block->ucp->uc_stack.ss_size = SIGSTKSZ;
+    block->ucp->uc_stack.ss_sp = malloc(STACK_SIZE);
+    block->ucp->uc_stack.ss_size = STACK_SIZE;
     block->ucp->uc_stack.ss_flags = 0;
 
     if (funcAddr) {

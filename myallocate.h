@@ -5,7 +5,8 @@
 #include <strings.h>
 #include <tgmath.h>
 
-#include "shared.h"
+#include "page.h"
+#include "frame.h"
 
 void initialize();
 

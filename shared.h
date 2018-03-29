@@ -1,13 +1,5 @@
-//
-// Created by Daniel Finlay on 3/28/18.
-//
-
-/**
- * The header file for all global data.
- */
-
-#ifndef USER_THREADS_SHARED_H
-#define USER_THREADS_SHARED_H
+#ifndef SHARED_H
+#define SHARED_H
 
 #include <unistd.h>
 #include <sys/ucontext.h>
@@ -20,8 +12,7 @@
  */
 #define _XOPEN_SOURCE 700
 
-#define FREE 1
-#define NOT_FREE 0
+#define FREE -1
 
 /**
  * Main memory's size is 8MB
@@ -31,21 +22,16 @@
 /**
  * The system's page size.
  */
-#define PAGE_SIZE 4096
+#define FRAME_SIZE 4096
 /**
  * The number of page frames.
  */
-#define NUM_FRAMES (BLOCK_SIZE / PAGE_SIZE)
-
-/**
- * The size of each chunk within a page or frame.
- */
-#define CHUNK_SIZE ((PAGE_SIZE / sizeof(block)) + 1)
+#define NUM_FRAMES (BLOCK_SIZE / FRAME_SIZE)
 
 /**
  * The number of offset bits.
  */
-#define NUM_OFFSET_BITS log2(PAGE_SIZE)
+#define NUM_OFFSET_BITS log2(FRAME_SIZE)
 
 /**
  * The number of address bits.
@@ -77,14 +63,6 @@ typedef struct {
     Queue *waiting; //queue for all waiting locks
 } my_pthread_mutex_t;
 
-// Struct for story allocated memory blocks,
-typedef struct {
-    int free; //is block free or already allocated, if free set 1 otherwise 0
-    size_t size; //size of given block allocated
-    struct block *next; //pointer to next block's metadata
-    struct block *prev; // pointer to prev block's metadata
-} block;
-
 typedef enum {
     TYPE_USER, TYPE_THREAD
 } RequestType;
@@ -98,6 +76,12 @@ typedef struct {
 } AddressMeta;
 
 typedef struct {
+
+    /**
+    * Mask storing the attributes of the frame.
+    */
+    long attributes;
+
     /**
      * The physical number of the frame.
      */
@@ -114,49 +98,34 @@ typedef struct {
     long lowerBound, upperBound; // inclusive, exclusive
 
     /**
-     * The current thread accessing the frame.
+     * The current thread accessing the frame. We mprotect this section for this thread id.
      * NOTE: Thread id 0 is for shared memory frame.
      */
     my_pthread_t threadId;
 
     /**
-     * The chunks total size.
-     */
-    block *blockRoot;
-
-    /**
      * The list of blocks within the frame.
      */
-    long blockList[CHUNK_SIZE];
+    long blockList[FRAME_SIZE]; //memcpy(page.blockist, sizeof(pageBlocklist, frame.blockList);
 } Frame;
 
 typedef struct {
 
     /**
-     * Mask storing the attributes of the page.
+     * The attributes of the page.
      */
     long attributes;
 
     /**
-     * The boundaries of the assigned memory.
+     * The pointer to the frame we select for this page forever.
      */
-    int lowerBound, upperBound;
+    Frame* frame;
 
-    /**
-     * The address and offset for frame.
-     */
-    AddressMeta frameAddrMeta;
-
-    // List of memory chunks that belong to the page
-    Queue *pageBlockList;
 } Page;
 
 typedef struct {
-    // Store curr
-    tcb currentBlock;
-    Page *pageList;
-} pageTable;
-
+    Page pages[NUM_FRAMES];
+} PageTable;
 
 
 /**
@@ -246,19 +215,13 @@ static my_pthread_t pthread_counter;
  * List of all the page tables in the program.
  * TODO possibly only store one at a time and then page swap.
  */
-static pageTable pageDir[MAX_NUM_THREADS];
+static PageTable pageDir[MAX_NUM_THREADS];
 
 /**
  * List of all the frames in the program.
  */
 static Frame frameList[NUM_FRAMES];
 
-/**
- * Returns the active frame.
- * @return Active frame.
- */
-Frame *getActiveFrame();
-
-#endif //USER_THREADS_SHARED_H
+#endif //SHARED_H
 
 

@@ -1,52 +1,64 @@
-//
-// Created by Daniel Finlay on 3/24/2018.
-//
-
-#include <memory.h>
 #include "frame.h"
 
-Frame *initFrames() {
+void initFrames() {
     int physicalNumber = 0;
     for (; physicalNumber < NUM_FRAMES; physicalNumber++) {
-        long lowerBound = physicalNumber * PAGE_SIZE;
-        long upperBound = (physicalNumber + 1) * PAGE_SIZE;
+        long lowerBound = physicalNumber * FRAME_SIZE;
+        long upperBound = (physicalNumber + 1) * FRAME_SIZE;
 
         Frame *frame = (frameList + physicalNumber);
 
         frame->lowerBound = lowerBound;
         frame->upperBound = upperBound;
+        frame->attributes = 0;
 
         frame->physicalNumber = physicalNumber;
-
-        frame->blockRoot = (block *) (memory + lowerBound);
-        // initialize prev/next to null
-        frame->blockRoot->prev = 0;
-        frame->blockRoot->next = 0;
-        // Initialize root size to be total memory available - metadata for root
-        frame->blockRoot->size = upperBound - lowerBound - sizeof(block);
-        // Initialize the block to be free
-        frame->blockRoot->free = FREE;
-
-        memset(frame->blockList, 0, sizeof(frame->blockList));
+        memset(frame->blockList, -1, sizeof(frame->blockList));
     }
-
-    return (Frame *) &frameList;
 }
 
-int findFreeSpace(Frame *frame) {
-    int index;
-    for (index = 0; index < CHUNK_SIZE; index++) {
-        if (frame->blockList[index] == 0) { // return index in array of pointers that's free/not initialized
-            return index;
-        }
-    }
+ProtectionType getProtectionType(Frame *frame) {
+    long attributes = frame->attributes;
 
-    return -1;
+    return (ProtectionType) attributes & 0x7;
 }
 
-Frame *getActiveFrame() {
-    if (!nextBlock) {
-        return frameList;
-    }
-    return frameList + nextBlock->pthread_id;
+void setProtectionType(Frame *frame, ProtectionType type) {
+    updateAllAttributes(frame, type, getPresentBit(frame), getValidBit(frame), getReferenceBit(frame));
+}
+
+long getPresentBit(Frame *frame) {
+    long attributes = frame->attributes;
+
+    return (attributes >> PRESENT_BIT) & 0x1;
+}
+
+void setPresentBit(Frame *frame, int present) {
+    frame->attributes |= present << PRESENT_BIT;
+
+    updateAllAttributes(frame, getProtectionType(frame), present, getValidBit(frame), getReferenceBit(frame));
+}
+
+long getValidBit(Frame *frame) {
+    long attributes = frame->attributes;
+
+    return (attributes >> VALID_BIT) & 0x1;
+}
+
+void setValidBit(Frame *frame, int valid) {
+    updateAllAttributes(frame, getProtectionType(frame), getPresentBit(frame), valid, getReferenceBit(frame));
+}
+
+long getReferenceBit(Frame *frame) {
+    long attributes = frame->attributes;
+
+    return (attributes >> REFERENCE_BIT) & 0xFFFF;
+}
+
+void setReferenceBit(Frame *frame, int referenceBit) {
+    updateAllAttributes(frame, getProtectionType(frame), getPresentBit(frame), getValidBit(frame), referenceBit);
+}
+
+void updateAllAttributes(Frame *frame, ProtectionType type, long presentBit, long validBit, long referenceBit) {
+    frame->attributes = referenceBit << REFERENCE_BIT | validBit << VALID_BIT | presentBit << PRESENT_BIT | type;
 }

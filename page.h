@@ -5,31 +5,29 @@
 #ifndef ASST1_PAGE_H
 #define ASST1_PAGE_H
 
+#include <memory.h>
 #include "shared.h"
 
-// Method used to lookup Physical Frame from virtual page
-struct AddressMeta getFrameFromPage(AddressMeta pageaAddress, pageTable pt);
+void initPages();
 
-// Used to set a page of a given pageTable to a frame
-void *setPageToAFrame(AddressMeta pageAddress, pageTable pt);
+ProtectionType getPageProtectionBit(Page *);
 
-ProtectionType getProtectionType(Page *);
+void setPageProtectionBit(Page *, ProtectionType);
 
-void setProtectionType(Page *, ProtectionType);
+long getPagePresentBit(Page *);
 
-long getPresentBit(Page *);
+void setPagePresentBit(Page *, int);
 
-void setPresentBit(Page *, int);
+long getPageValidBit(Page *);
 
-long getValidBit(Page *);
+void setPageValidBit(Page *, int);
 
-void setValidBit(Page *, int);
+long getPageReferenceBit(Page *);
 
-long getReferenceBit(Page *);
+void setPageReferenceBit(Page *, int);
 
-void setReferenceBit(Page *, int);
+void updatePageAttributes(Page *, ProtectionType, long, long, long);
 
-void updateAllAttributes(Page *, ProtectionType, long, long, long);
-
+PageTable *getActiveTable();
 
 #endif //ASST1_PAGE_H

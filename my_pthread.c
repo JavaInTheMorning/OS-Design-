@@ -292,35 +292,6 @@ int my_pthread_equal(my_pthread_t t1, my_pthread_t t2) {
     return t1 == t2;
 }
 
-/*int my_pthread_cancel(my_pthread_t thread) {
-    if (my_pthread_equal(nextBlock->pthread_id, thread))
-        my_pthread_exit(0);
-
-    sigprocmask(SIG_BLOCK, &alarm_sigset, NULL);
-    tcb *t = getThreadBlockForID(thread);
-    if (t == NULL) {
-        sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
-        return -1;
-    }
-    if (t->state == STATE_COMPLETE) {
-        sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
-        return -1;
-    }
-    if (t->state == STATE_CANCELED) {
-        sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
-        return -1;
-    } else
-        t->state = STATE_CANCELED;
-
-    free(t->ucp->uc_stack.ss_sp);
-    free(t->ucp);
-    t->ucp = NULL;
-    t->joinedThreadId = 0;
-    queue_push(REAP_QUEUE, t);
-    sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
-    return 0;
-}*/
-
 void reapRoutine(void *(*start_routine)(void *), void *args) {
     sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
 
@@ -374,7 +345,7 @@ void interruptHandler(int sig) {
 
     swapcontext(previousBlock->ucp, nextBlock->ucp);
 
-   // nextBlock->state = STATE_COMPLETE;
+    // nextBlock->state = STATE_COMPLETE;
     if (!queue_push(REAP_QUEUE, nextBlock)) {
         return;
     }
@@ -383,7 +354,8 @@ void interruptHandler(int sig) {
 int updateNextBlock(tcb *lastBlock) {
     do {
         if (queue_empty(READY_QUEUE)) {
-            if (lastBlock && !queue_push(READY_QUEUE, lastBlock)) { //TODO higher priority push here! Block already exists.
+            if (lastBlock &&
+                !queue_push(READY_QUEUE, lastBlock)) { //TODO higher priority push here! Block already exists.
                 printf("Could not push the next block on ready interrupt.\n");
                 return -1;
             }
@@ -413,7 +385,7 @@ int updateNextBlock(tcb *lastBlock) {
 
 
 //    mprotect( buffer, FRAME_SIZE, PROT_NONE);  //disallow all accesses of address buffer over length pagesize
-  //  mprotect( buffer, FRAME_SIZE, PROT_READ | PROT_WRITE); //allow read and write to address buffer over length pagesize
+    //  mprotect( buffer, FRAME_SIZE, PROT_READ | PROT_WRITE); //allow read and write to address buffer over length pagesize
 
     if (!lastBlock) {
         return 0;

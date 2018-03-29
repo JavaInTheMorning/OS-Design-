@@ -288,10 +288,6 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
     return 0;
 }
 
-int my_pthread_equal(my_pthread_t t1, my_pthread_t t2) {
-    return t1 == t2;
-}
-
 void reapRoutine(void *(*start_routine)(void *), void *args) {
     sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
 

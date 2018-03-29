@@ -14,10 +14,11 @@
 
 #include <string.h>
 
-#include "my_pthread.h"
 #include "Queue.h"
+#include "myallocate.h"
 
-#include "shared.h"
+
+
 
 void prepareScheduler(long period);
 

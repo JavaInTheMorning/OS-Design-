@@ -12,7 +12,7 @@
  */
 #define _XOPEN_SOURCE 700
 
-#define FREE -1
+#define FREE 0
 
 /**
  * Main memory's size is 8MB
@@ -36,7 +36,7 @@
 /**
  * The number of address bits.
  */
-#define ADDRESS_SHIFT ((sizeof(long) * 8) - NUM_OFFSET_BITS)
+#define ADDRESS_SHIFT (32 - NUM_OFFSET_BITS)
 
 
 typedef unsigned long my_pthread_t;
@@ -98,8 +98,7 @@ typedef struct {
     long lowerBound, upperBound; // inclusive, exclusive
 
     /**
-     * The current thread accessing the frame. We mprotect this section for this thread id.
-     * NOTE: Thread id 0 is for shared memory frame.
+     * The current thread accessing the frame.
      */
     my_pthread_t threadId;
 
@@ -120,7 +119,6 @@ typedef struct {
      * The pointer to the frame we select for this page forever.
      */
     Frame* frame;
-
 } Page;
 
 typedef struct {
@@ -142,9 +140,15 @@ typedef struct {
 #define VALID_BIT 4
 
 /**
+ * The occupied bit.
+ */
+#define OCCUPIED_BIT 5
+
+/**
  * The reference bit range.
  */
-#define REFERENCE_BIT 5
+#define REFERENCE_BIT 6
+
 
 /**
  * The number of max threads.
@@ -174,7 +178,7 @@ static char initialized;
 /**
  * Initialize memory block for simulating main memory
  */
-static char memory[BLOCK_SIZE];
+static char* memory;
 
 /**
  * The queue containing all of the ready list.

@@ -1,4 +1,5 @@
 #include "frame.h"
+#include "shared.h"
 
 void initFrames() {
     int physicalNumber = 0;
@@ -13,7 +14,6 @@ void initFrames() {
         frame->attributes = 0;
 
         frame->physicalNumber = physicalNumber;
-        memset(frame->blockList, -1, sizeof(frame->blockList));
     }
 }
 
@@ -24,7 +24,7 @@ ProtectionType getProtectionType(Frame *frame) {
 }
 
 void setProtectionType(Frame *frame, ProtectionType type) {
-    updateAllAttributes(frame, type, getPresentBit(frame), getValidBit(frame), getReferenceBit(frame));
+    updateAllAttributes(frame, type, getOccupiedBit(frame), getPresentBit(frame), getValidBit(frame), getReferenceBit(frame));
 }
 
 long getPresentBit(Frame *frame) {
@@ -36,7 +36,7 @@ long getPresentBit(Frame *frame) {
 void setPresentBit(Frame *frame, int present) {
     frame->attributes |= present << PRESENT_BIT;
 
-    updateAllAttributes(frame, getProtectionType(frame), present, getValidBit(frame), getReferenceBit(frame));
+    updateAllAttributes(frame, getProtectionType(frame), getOccupiedBit(frame), present, getValidBit(frame), getReferenceBit(frame));
 }
 
 long getValidBit(Frame *frame) {
@@ -46,7 +46,18 @@ long getValidBit(Frame *frame) {
 }
 
 void setValidBit(Frame *frame, int valid) {
-    updateAllAttributes(frame, getProtectionType(frame), getPresentBit(frame), valid, getReferenceBit(frame));
+    updateAllAttributes(frame, getProtectionType(frame), getOccupiedBit(frame), getPresentBit(frame), valid, getReferenceBit(frame));
+}
+
+
+long getOccupiedBit(Frame *frame) {
+    long attributes = frame->attributes;
+
+    return (attributes >> OCCUPIED_BIT) & 1;
+}
+
+void setOccupiedBit(Frame *frame, int occupiedBit) {
+    updateAllAttributes(frame, getProtectionType(frame), occupiedBit,  getPresentBit(frame), getValidBit(frame), getReferenceBit(frame));
 }
 
 long getReferenceBit(Frame *frame) {
@@ -56,9 +67,16 @@ long getReferenceBit(Frame *frame) {
 }
 
 void setReferenceBit(Frame *frame, int referenceBit) {
-    updateAllAttributes(frame, getProtectionType(frame), getPresentBit(frame), getValidBit(frame), referenceBit);
+    updateAllAttributes(frame, getProtectionType(frame), getOccupiedBit(frame), getPresentBit(frame), getValidBit(frame), referenceBit);
 }
 
-void updateAllAttributes(Frame *frame, ProtectionType type, long presentBit, long validBit, long referenceBit) {
-    frame->attributes = referenceBit << REFERENCE_BIT | validBit << VALID_BIT | presentBit << PRESENT_BIT | type;
+void updateAllAttributes(Frame *frame, ProtectionType type, long occupiedBit, long presentBit, long validBit, long referenceBit) {
+    frame->attributes = referenceBit << REFERENCE_BIT | occupiedBit << OCCUPIED_BIT | validBit << VALID_BIT | presentBit << PRESENT_BIT | type;
+}
+
+void setPage(my_pthread_t threadId, Page* page, Frame* frame) {
+    setOccupiedBit(frame, 1);
+
+    frame->threadId = threadId;
+    page->frame = frame;
 }

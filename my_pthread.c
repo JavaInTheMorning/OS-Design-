@@ -1,5 +1,4 @@
 #include "my_pthread.h"
-#include "myallocate.h"
 #include <stdio.h>
 
 void prepareScheduler(long period) {
@@ -62,9 +61,11 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t *attr, void *(*funcAd
         return -1;
     }
 
-    if (getcontext(block->ucp) == -1) {
-        perror("Could not get active context.\n");
-        return -1;
+    if (funcAddr) {
+        if (getcontext(block->ucp) == -1) {
+            perror("Could not get active context.\n");
+            return -1;
+        }
     }
 
     block->ucp->uc_stack.ss_sp = malloc(STACK_SIZE);
@@ -165,6 +166,7 @@ void my_pthread_exit(void *returnPointer) {
             return;
         }
 
+        updateProtections();
         sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
         setcontext(nextBlock->ucp);
 
@@ -194,7 +196,9 @@ int my_pthread_yield(void) {
         return -1;
     }
 
+    updateProtections();
     sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
+
     swapcontext(previousBlock->ucp, nextBlock->ucp);
 
     if (!queue_push(REAP_QUEUE, nextBlock)) {
@@ -365,7 +369,9 @@ void interruptHandler(int sig) {
         return;
     }
 
+    updateProtections();
     sigprocmask(SIG_UNBLOCK, &alarm_sigset, NULL);
+
     swapcontext(previousBlock->ucp, nextBlock->ucp);
 
    // nextBlock->state = STATE_COMPLETE;
@@ -404,6 +410,10 @@ int updateNextBlock(tcb *lastBlock) {
         }
 
     } while (1);
+
+
+//    mprotect( buffer, FRAME_SIZE, PROT_NONE);  //disallow all accesses of address buffer over length pagesize
+  //  mprotect( buffer, FRAME_SIZE, PROT_READ | PROT_WRITE); //allow read and write to address buffer over length pagesize
 
     if (!lastBlock) {
         return 0;

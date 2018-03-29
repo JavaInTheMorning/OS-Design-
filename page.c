@@ -9,8 +9,6 @@ void initPages() {
         for (; pageNum < NUM_FRAMES; pageNum++) {
             Page *page = table->pages + pageNum;
 
-            page->frame = frameList + pageNum;
-
             setPageValidBit(page, 1);
         }
     }

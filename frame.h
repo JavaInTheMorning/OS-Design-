@@ -24,6 +24,10 @@ long getPresentBit(Frame *);
 
 void setPresentBit(Frame *, int);
 
+long getOccupiedBit(Frame *);
+
+void setOccupiedBit(Frame *, int);
+
 /**
  *
  */
@@ -35,6 +39,8 @@ long getReferenceBit(Frame *);
 
 void setReferenceBit(Frame *, int);
 
-void updateAllAttributes(Frame *, ProtectionType, long, long, long);
+void updateAllAttributes(Frame *, ProtectionType, long, long, long, long);
+
+void setPage(my_pthread_t, Page*, Frame*);
 
 #endif //ASST1_FRAME_H

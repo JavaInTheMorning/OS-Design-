@@ -3,12 +3,29 @@
 //
 
 #include "myallocate.h"
+#include "shared.h"
 
 #define META_SIZE 1
 
 void initialize() {
+    memory = memalign(FRAME_SIZE, BLOCK_SIZE);
+    if (!memory) {
+        printf("Could not memalign!\n");
+        return;
+    }
+
     initFrames();
     initPages();
+
+    struct sigaction sa;
+    sa.sa_flags = SA_SIGINFO;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_sigaction = handler;
+
+    if (sigaction(SIGSEGV, &sa, NULL) == -1) {
+        printf("Fatal error setting up signal handler\n");
+        exit(EXIT_FAILURE);    //explode!
+    }
 }
 
 void *myAllocate(size_t sizeBits, char *fileName, int lineNum, RequestType type) {
@@ -21,8 +38,7 @@ void *myAllocate(size_t sizeBits, char *fileName, int lineNum, RequestType type)
         initialize();
     }
 
-    PageTable* table = getActiveTable();
-
+    PageTable *table = getActiveTable();
 
     int pageNum = 0;
     size_t position = 0;
@@ -31,6 +47,12 @@ void *myAllocate(size_t sizeBits, char *fileName, int lineNum, RequestType type)
     Page *page = NULL;
     for (; pageNum < NUM_FRAMES; pageNum++) {
         page = table->pages + pageNum;
+
+        if (!page->frame) {
+            setPage(getActiveThread(), page, nextAvailableFrame());
+            updateProtections();
+        }
+
         for (; position < FRAME_SIZE; position++) {
             // Need to find contiguous space in memory.
             size_t fromPosition = position, toPosition = fromPosition + sizeBits + META_SIZE;
@@ -42,7 +64,7 @@ void *myAllocate(size_t sizeBits, char *fileName, int lineNum, RequestType type)
 
             isOpenAvail = 1;
             for (; fromPosition < toPosition; fromPosition++) {
-                if (page->frame->blockList[fromPosition] != FREE) { // Something isn't in here we continue.
+                if (page->frame->blockList[fromPosition] == FREE) { // Something isn't in here we continue.
                     continue;
                 }
 
@@ -58,6 +80,8 @@ void *myAllocate(size_t sizeBits, char *fileName, int lineNum, RequestType type)
         if (isOpenAvail) {
             break;
         }
+
+        position = 0;
     }
 
     if (!isOpenAvail) {
@@ -69,8 +93,7 @@ void *myAllocate(size_t sizeBits, char *fileName, int lineNum, RequestType type)
 
     size_t index = position + META_SIZE;
     for (; index < sizeBits + META_SIZE; index++) {
-        page->frame->blockList[index] = (long) (memory + page->frame->lowerBound +
-                                                index); // no real memory here only placibos
+        page->frame->blockList[index] = (long) (memory + page->frame->lowerBound + index);
     }
 
     setPageValidBit(page, 0);
@@ -79,7 +102,7 @@ void *myAllocate(size_t sizeBits, char *fileName, int lineNum, RequestType type)
 }
 
 void myDeAllocate(void *ptr, char *fileName, int lineNum, RequestType type) {
-    PageTable* table = getActiveTable();
+    PageTable *table = getActiveTable();
 
     int pageNum = 0;
     size_t position = 0;
@@ -89,7 +112,8 @@ void myDeAllocate(void *ptr, char *fileName, int lineNum, RequestType type) {
     for (; pageNum < NUM_FRAMES; pageNum++) {
         page = table->pages + pageNum;
 
-        if (getPageValidBit(page) != 0) {
+
+        if (!page->frame || getPageValidBit(page) != 0) {
             continue;
         }
 
@@ -120,6 +144,13 @@ void myDeAllocate(void *ptr, char *fileName, int lineNum, RequestType type) {
     *(&(ptr)) = NULL;
 }
 
+static void handler(int sig, siginfo_t *si, void *unused) {
+    printf("Got SIGSEGV at address: 0x%lx\n", (long) si->si_addr);
+}
+
+void updateProtections() {
+}
+
 
 AddressMeta calculateAddressMeta(long addressHash) {
     AddressMeta meta;
@@ -128,4 +159,19 @@ AddressMeta calculateAddressMeta(long addressHash) {
     meta.address = (addressHash >> (long) ADDRESS_SHIFT);
 
     return meta;
+}
+
+Frame *nextAvailableFrame() {
+    int nextFrame = 0;
+    for (; nextFrame < NUM_FRAMES; nextFrame++) {
+        Frame *frame = frameList + nextFrame;
+        if (!getOccupiedBit(frame)) {
+            return frame;
+        }
+    }
+    return NULL;
+}
+
+my_pthread_t getActiveThread() {
+    return !nextBlock ? MAIN_THREAD_IDENTIFIER : nextBlock->pthread_id;
 }
